@@ -109,20 +109,59 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadItems,
-              child: ListView.separated(
-                itemCount: filteredItems.length,
-                separatorBuilder: (_, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final item = filteredItems[index];
-                  final productName = item.product.name ?? 'Produto sem nome';
-
-                  return ListTile(
-                    title: Text(productName),
-                    onTap: () => _openDetail(item),
-                  );
-                },
-              ),
+              child: filteredItems.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text('Nenhum item encontrado no historico.'),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      itemCount: filteredItems.length,
+                      separatorBuilder: (_, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = filteredItems[index];
+                        return _HistoryObservationTile(
+                          observation: item,
+                          onTap: () => _openDetail(item),
+                        );
+                      },
+                    ),
             ),
+    );
+  }
+}
+
+class _HistoryObservationTile extends StatelessWidget {
+  const _HistoryObservationTile({
+    required this.observation,
+    required this.onTap,
+  });
+
+  final PriceObservation observation;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final productName = observation.product.name ?? 'Produto sem nome';
+    final brand = observation.product.brand ?? 'Marca nao informada';
+    final category = observation.product.category ?? 'Categoria nao informada';
+    final storeName = observation.store.name;
+    final date = observation.observedAt.toLocal().toString().split('.').first;
+    final price = (observation.priceCents / 100).toStringAsFixed(2);
+
+    return ListTile(
+      onTap: onTap,
+      title: Text(productName),
+      subtitle: Text(
+        '$brand • $category\n$storeName • $date',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Text('R\$ $price'),
+      isThreeLine: true,
     );
   }
 }
