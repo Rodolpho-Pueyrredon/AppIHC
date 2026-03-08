@@ -24,6 +24,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _repository = ServiceLocator.instance.priceObservationRepository;
   final _lookupUseCase = ServiceLocator.instance.lookupProductByBarcodeUseCase;
+  final _geolocationService = ServiceLocator.instance.geolocationService;
 
   late final TextEditingController _storeNameController;
   late final TextEditingController _brandController;
@@ -140,33 +141,45 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       return;
     }
 
-    setState(() {
-      _isSaving = true;
-    });
-
     state.setStoreName(_storeNameController.text.trim());
     state.setBrand(_brandController.text.trim());
     state.setCategory(_categoryController.text.trim());
     state.setPriceText(_priceController.text.trim());
 
-    final updated = _baseObservation.copyWith(
-      product: state.applyToProduct(_baseObservation.product),
-      store: _baseObservation.store.copyWith(
-        name: state.storeName,
-      ),
-      priceCents: ((double.tryParse(
-                    state.priceText.replaceAll(',', '.'),
-                  ) ??
-                  0) *
-              100)
-          .round(),
+    final priceCents = _parsePriceToCents(state.priceText);
+    if (priceCents == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preco invalido. Use um valor numerico.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final now = DateTime.now().toUtc();
+    final geolocation = await _geolocationService.getCurrentPosition();
+    final productWithFallbackBarcode = state
+        .applyToProduct(_baseObservation.product)
+        .copyWith(
+          barcode: _baseObservation.product.barcode.trim().isEmpty
+              ? 'MANUAL-BARCODE'
+              : _baseObservation.product.barcode,
+        );
+
+    final newObservation = PriceObservation(
+      product: productWithFallbackBarcode,
+      store: _baseObservation.store.copyWith(name: state.storeName),
+      priceCents: priceCents,
+      latitude: geolocation?.latitude ?? _baseObservation.latitude,
+      longitude: geolocation?.longitude ?? _baseObservation.longitude,
+      observedAt: now,
+      note: _baseObservation.note,
+      createdAt: now,
     );
 
-    if (updated.id == null) {
-      await _repository.saveObservation(updated);
-    } else {
-      await _repository.updateObservation(updated);
-    }
+    await _repository.saveObservation(newObservation);
 
     if (!mounted) {
       return;
@@ -177,6 +190,20 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     });
 
     _goBackToOrigin();
+  }
+
+  int? _parsePriceToCents(String value) {
+    final normalized = value.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    final parsed = double.tryParse(normalized);
+    if (parsed == null || parsed.isNaN || parsed.isInfinite || parsed < 0) {
+      return null;
+    }
+
+    return (parsed * 100).round();
   }
 
   void _cancel() {
@@ -300,6 +327,12 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (value) {
+                        if (_parsePriceToCents(value ?? '') == null) {
+                          return 'Informe um preco valido.';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 20),
                     Row(
