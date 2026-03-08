@@ -100,6 +100,15 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
     );
   }
 
+  @override
+  Future<void> deleteObservation(int id) async {
+    await _sqliteService.delete(
+      'price_observations',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   String _baseSelectQuery({
     String where = '',
     String orderBy = '',

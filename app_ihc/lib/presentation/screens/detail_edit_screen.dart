@@ -252,10 +252,49 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     _goBackToOrigin();
   }
 
+  Future<void> _deleteObservation() async {
+    final observationId = _baseObservation.id;
+    if (observationId == null) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await _repository.deleteObservation(observationId);
+    } catch (_) {
+      if (mounted) {
+        _showFeedback('Erro ao deletar observacao.');
+        setState(() {
+          _isSaving = false;
+        });
+      }
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = false;
+    });
+
+    _showFeedback('Observacao deletada.');
+    _goBackToOrigin();
+  }
+
   void _showFeedback(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
   }
 
   void _goBackToOrigin() {
@@ -385,9 +424,22 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                             onPressed: _cancel,
                             child: const Text('Cancelar'),
                           ),
-                        ),
+                          ),
                       ],
                     ),
+                    if (!state.isAnyFieldInEditMode && _baseObservation.id != null)
+                      const SizedBox(height: 10),
+                    if (!state.isAnyFieldInEditMode && _baseObservation.id != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _isSaving ? null : _deleteObservation,
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.red.shade50,
+                          ),
+                          child: const Text('Deletar'),
+                        ),
+                      ),
                   ],
                 ),
               ),

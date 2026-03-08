@@ -5,4 +5,5 @@ abstract interface class PriceObservationRepository {
   Future<PriceObservation?> getById(int id);
   Future<PriceObservation> saveObservation(PriceObservation observation);
   Future<void> updateObservation(PriceObservation observation);
+  Future<void> deleteObservation(int id);
 }

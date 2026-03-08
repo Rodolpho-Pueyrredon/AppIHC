@@ -135,4 +135,18 @@ class SQLiteService implements SQLiteServiceContract {
       whereArgs: whereArgs,
     );
   }
+
+  @override
+  Future<int> delete(
+    String table, {
+    required String where,
+    required List<Object?> whereArgs,
+  }) async {
+    final db = await _db;
+    return db.delete(
+      table,
+      where: where,
+      whereArgs: whereArgs,
+    );
+  }
 }

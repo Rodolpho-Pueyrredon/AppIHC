@@ -8,6 +8,11 @@ abstract interface class SQLiteServiceContract {
     required String where,
     required List<Object?> whereArgs,
   });
+  Future<int> delete(
+    String table, {
+    required String where,
+    required List<Object?> whereArgs,
+  });
   Future<List<Map<String, Object?>>> query(
     String table, {
     List<String>? columns,
