@@ -111,7 +111,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onRefresh: _loadItems,
               child: ListView.separated(
                 itemCount: filteredItems.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final item = filteredItems[index];
                   final productName = item.product.name ?? 'Produto sem nome';
