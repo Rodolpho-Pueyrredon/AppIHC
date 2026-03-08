@@ -109,30 +109,44 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isLoadingProductInfo = true;
     });
 
-    final lookedUp = await _lookupUseCase(_baseObservation.product.barcode);
-    if (!mounted) {
-      return;
+    try {
+      final lookedUp = await _lookupUseCase(_baseObservation.product.barcode);
+      if (!mounted) {
+        return;
+      }
+
+      _baseObservation = _baseObservation.copyWith(product: lookedUp);
+      _brandController.text = lookedUp.brand ?? '';
+      _categoryController.text = lookedUp.category ?? '';
+
+      _stateHolder = DetailEditStateHolder(
+        sourceScreen: _sourceScreen,
+        initialStoreName: _storeNameController.text,
+        initialBrand: _brandController.text,
+        initialCategory: _categoryController.text,
+        initialPriceText: _priceController.text,
+      );
+
+      if ((lookedUp.brand ?? '').trim().isEmpty &&
+          (lookedUp.category ?? '').trim().isEmpty) {
+        _showFeedback('Nao foi possivel completar lookup de API. Preencha manualmente.');
+      }
+    } catch (_) {
+      if (mounted) {
+        _showFeedback('Erro ao consultar API de produto. Preencha manualmente.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingProductInfo = false;
+        });
+      }
     }
-
-    _baseObservation = _baseObservation.copyWith(product: lookedUp);
-    _brandController.text = lookedUp.brand ?? '';
-    _categoryController.text = lookedUp.category ?? '';
-
-    _stateHolder = DetailEditStateHolder(
-      sourceScreen: _sourceScreen,
-      initialStoreName: _storeNameController.text,
-      initialBrand: _brandController.text,
-      initialCategory: _categoryController.text,
-      initialPriceText: _priceController.text,
-    );
-
-    setState(() {
-      _isLoadingProductInfo = false;
-    });
   }
 
   Future<void> _confirm() async {
     if (!_formKey.currentState!.validate()) {
+      _showFeedback('Revise os campos obrigatorios antes de confirmar.');
       return;
     }
 
@@ -148,9 +162,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
 
     final priceCents = _parsePriceToCents(state.priceText);
     if (priceCents == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preco invalido. Use um valor numerico.')),
-      );
+      _showFeedback('Preco invalido. Informe valor numerico maior que zero.');
       return;
     }
 
@@ -158,28 +170,38 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isSaving = true;
     });
 
-    final now = DateTime.now().toUtc();
-    final geolocation = await _geolocationService.getCurrentPosition();
-    final productWithFallbackBarcode = state
-        .applyToProduct(_baseObservation.product)
-        .copyWith(
-          barcode: _baseObservation.product.barcode.trim().isEmpty
-              ? 'MANUAL-BARCODE'
-              : _baseObservation.product.barcode,
-        );
+    try {
+      final now = DateTime.now().toUtc();
+      final geolocation = await _geolocationService.getCurrentPosition();
+      final productWithFallbackBarcode = state
+          .applyToProduct(_baseObservation.product)
+          .copyWith(
+            barcode: _baseObservation.product.barcode.trim().isEmpty
+                ? 'MANUAL-BARCODE'
+                : _baseObservation.product.barcode,
+          );
 
-    final newObservation = PriceObservation(
-      product: productWithFallbackBarcode,
-      store: _baseObservation.store.copyWith(name: state.storeName),
-      priceCents: priceCents,
-      latitude: geolocation?.latitude ?? _baseObservation.latitude,
-      longitude: geolocation?.longitude ?? _baseObservation.longitude,
-      observedAt: now,
-      note: _baseObservation.note,
-      createdAt: now,
-    );
+      final newObservation = PriceObservation(
+        product: productWithFallbackBarcode,
+        store: _baseObservation.store.copyWith(name: state.storeName),
+        priceCents: priceCents,
+        latitude: geolocation?.latitude ?? _baseObservation.latitude,
+        longitude: geolocation?.longitude ?? _baseObservation.longitude,
+        observedAt: now,
+        note: _baseObservation.note,
+        createdAt: now,
+      );
 
-    await _repository.saveObservation(newObservation);
+      await _repository.saveObservation(newObservation);
+    } catch (_) {
+      if (mounted) {
+        _showFeedback('Erro ao salvar no banco local. Tente novamente.');
+        setState(() {
+          _isSaving = false;
+        });
+      }
+      return;
+    }
 
     if (!mounted) {
       return;
@@ -189,6 +211,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isSaving = false;
     });
 
+    _showFeedback('Observacao salva com sucesso.');
     _goBackToOrigin();
   }
 
@@ -199,7 +222,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     }
 
     final parsed = double.tryParse(normalized);
-    if (parsed == null || parsed.isNaN || parsed.isInfinite || parsed < 0) {
+    if (parsed == null || parsed.isNaN || parsed.isInfinite || parsed <= 0) {
       return null;
     }
 
@@ -221,6 +244,12 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     }
 
     _goBackToOrigin();
+  }
+
+  void _showFeedback(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _goBackToOrigin() {

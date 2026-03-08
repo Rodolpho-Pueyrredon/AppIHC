@@ -6,10 +6,14 @@ class ScannerArea extends StatefulWidget {
     super.key,
     required this.scannerService,
     required this.onCodeDetected,
+    this.onScanError,
+    this.onEmptyCode,
   });
 
   final ScannerServiceContract scannerService;
   final ValueChanged<String> onCodeDetected;
+  final ValueChanged<String>? onScanError;
+  final VoidCallback? onEmptyCode;
 
   @override
   State<ScannerArea> createState() => _ScannerAreaState();
@@ -23,20 +27,33 @@ class _ScannerAreaState extends State<ScannerArea> {
       _isReading = true;
     });
 
-    final code = await widget.scannerService.scanBarcode();
-    if (!mounted) {
-      return;
+    try {
+      final code = await widget.scannerService.scanBarcode();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isReading = false;
+      });
+
+      if (code == null || code.trim().isEmpty) {
+        widget.onEmptyCode?.call();
+        return;
+      }
+
+      widget.onCodeDetected(code);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isReading = false;
+      });
+
+      widget.onScanError?.call(e.toString());
     }
-
-    setState(() {
-      _isReading = false;
-    });
-
-    if (code == null || code.trim().isEmpty) {
-      return;
-    }
-
-    widget.onCodeDetected(code);
   }
 
   @override

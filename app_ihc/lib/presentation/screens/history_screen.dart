@@ -38,15 +38,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _isLoading = true;
     });
 
-    final items = await _repository.getObservations();
-    if (!mounted) {
-      return;
-    }
+    try {
+      final items = await _repository.getObservations();
+      if (!mounted) {
+        return;
+      }
 
-    setState(() {
-      _allItems = items;
-      _isLoading = false;
-    });
+      setState(() {
+        _allItems = items;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao carregar historico local.')),
+      );
+    }
   }
 
   void _onSearchChanged() {
@@ -156,7 +169,7 @@ class _HistoryObservationTile extends StatelessWidget {
       onTap: onTap,
       title: Text(productName),
       subtitle: Text(
-        '$brand • $category\n$storeName • $date',
+        '$brand - $category\n$storeName - $date',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),

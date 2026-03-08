@@ -37,6 +37,16 @@ class ScannerScreen extends StatelessWidget {
               ),
             );
           },
+          onEmptyCode: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Nenhum codigo foi lido.')),
+            );
+          },
+          onScanError: (_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Falha ao ler codigo. Tente novamente.')),
+            );
+          },
         ),
       ),
     );
