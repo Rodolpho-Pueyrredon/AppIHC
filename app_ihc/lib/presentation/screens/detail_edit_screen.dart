@@ -1,6 +1,7 @@
 import 'package:app_ihc/core/constants/app_routes.dart';
 import 'package:app_ihc/core/constants/screen_origins.dart';
 import 'package:app_ihc/core/di/service_locator.dart';
+import 'package:app_ihc/core/utils/price_parser.dart';
 import 'package:app_ihc/domain/models/price_observation.dart';
 import 'package:app_ihc/domain/models/product.dart';
 import 'package:app_ihc/domain/models/store.dart';
@@ -160,7 +161,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     state.setCategory(_categoryController.text.trim());
     state.setPriceText(_priceController.text.trim());
 
-    final priceCents = _parsePriceToCents(state.priceText);
+    final priceCents = parsePriceToCents(state.priceText);
     if (priceCents == null) {
       _showFeedback('Preco invalido. Informe valor numerico maior que zero.');
       return;
@@ -213,20 +214,6 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
 
     _showFeedback('Observacao salva com sucesso.');
     _goBackToOrigin();
-  }
-
-  int? _parsePriceToCents(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
-    if (normalized.isEmpty) {
-      return null;
-    }
-
-    final parsed = double.tryParse(normalized);
-    if (parsed == null || parsed.isNaN || parsed.isInfinite || parsed <= 0) {
-      return null;
-    }
-
-    return (parsed * 100).round();
   }
 
   void _cancel() {
@@ -357,7 +344,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                         decimal: true,
                       ),
                       validator: (value) {
-                        if (_parsePriceToCents(value ?? '') == null) {
+                        if (parsePriceToCents(value ?? '') == null) {
                           return 'Informe um preco valido.';
                         }
                         return null;
