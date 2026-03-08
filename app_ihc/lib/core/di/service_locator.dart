@@ -38,7 +38,6 @@ class ServiceLocator {
     geolocationService = StubGeolocationService();
 
     sqliteService = SQLiteService();
-    sqliteService.init();
 
     final apiConfig = ProductLookupApiConfig.fromEnvironment();
     final httpJsonClient = DartHttpJsonClient();

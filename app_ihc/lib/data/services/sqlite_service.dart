@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:app_ihc/core/constants/database_schema.dart';
 import 'package:app_ihc/domain/services/sqlite_service_contract.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class SQLiteService implements SQLiteServiceContract {
   Database? _database;
+  Future<void>? _initFuture;
 
   Future<Database> get _db async {
     if (_database != null) {
@@ -21,26 +26,51 @@ class SQLiteService implements SQLiteServiceContract {
     if (_database != null) {
       return;
     }
+    if (_initFuture != null) {
+      await _initFuture;
+      return;
+    }
 
-    final dir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(dir.path, DatabaseSchema.databaseName);
+    _initFuture = () async {
+      final dir = await getApplicationDocumentsDirectory();
+      final dbPath = p.join(dir.path, DatabaseSchema.databaseName);
+      debugPrint('SQLite DB path: $dbPath');
 
-    _database = await openDatabase(
-      dbPath,
-      version: DatabaseSchema.databaseVersion,
-      onCreate: (db, _) async {
-        await db.execute(DatabaseSchema.createProductsTable);
-        await db.execute(DatabaseSchema.createStoresTable);
-        await db.execute(DatabaseSchema.createStoresNormalizedNameIndex);
-        await db.execute(DatabaseSchema.createPriceObservationsTable);
-        await db.execute(DatabaseSchema.createPriceObsProductIdIndex);
-        await db.execute(DatabaseSchema.createPriceObsStoreIdIndex);
-        await db.execute(DatabaseSchema.createPriceObsObservedAtIndex);
-      },
-      onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON;');
-      },
-    );
+      final factory = _databaseFactoryForCurrentPlatform();
+      _database = await factory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: DatabaseSchema.databaseVersion,
+          onCreate: (db, _) async {
+            await db.execute(DatabaseSchema.createProductsTable);
+            await db.execute(DatabaseSchema.createStoresTable);
+            await db.execute(DatabaseSchema.createStoresNormalizedNameIndex);
+            await db.execute(DatabaseSchema.createPriceObservationsTable);
+            await db.execute(DatabaseSchema.createPriceObsProductIdIndex);
+            await db.execute(DatabaseSchema.createPriceObsStoreIdIndex);
+            await db.execute(DatabaseSchema.createPriceObsObservedAtIndex);
+          },
+          onConfigure: (db) async {
+            await db.execute('PRAGMA foreign_keys = ON;');
+          },
+        ),
+      );
+    }();
+
+    try {
+      await _initFuture;
+    } finally {
+      _initFuture = null;
+    }
+  }
+
+  DatabaseFactory _databaseFactoryForCurrentPlatform() {
+    if (Platform.isWindows || Platform.isLinux) {
+      sqfliteFfiInit();
+      return databaseFactoryFfi;
+    }
+
+    return sqflite.databaseFactory;
   }
 
   @override
