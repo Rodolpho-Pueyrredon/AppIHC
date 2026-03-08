@@ -1,4 +1,5 @@
 import 'package:app_ihc/core/constants/app_routes.dart';
+import 'package:app_ihc/core/constants/screen_origins.dart';
 import 'package:app_ihc/core/di/service_locator.dart';
 import 'package:app_ihc/domain/models/price_observation.dart';
 import 'package:app_ihc/presentation/navigation/detail_edit_args.dart';
@@ -6,8 +7,6 @@ import 'package:flutter/material.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
-
-  static const String sourceName = 'history_screen';
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -66,7 +65,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       AppRoutes.detailEdit,
       arguments: DetailEditArgs(
         observation: observation,
-        sourceScreen: HistoryScreen.sourceName,
+        sourceScreen: ScreenOrigins.screen2,
       ),
     );
     await _loadItems();

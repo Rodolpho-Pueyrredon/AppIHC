@@ -1,8 +1,11 @@
+import 'package:app_ihc/core/constants/app_routes.dart';
+import 'package:app_ihc/core/constants/screen_origins.dart';
 import 'package:app_ihc/core/di/service_locator.dart';
 import 'package:app_ihc/domain/models/price_observation.dart';
 import 'package:app_ihc/domain/models/product.dart';
 import 'package:app_ihc/domain/models/store.dart';
 import 'package:app_ihc/presentation/navigation/detail_edit_args.dart';
+import 'package:app_ihc/presentation/state/detail_edit_state_holder.dart';
 import 'package:flutter/material.dart';
 
 class DetailEditScreen extends StatefulWidget {
@@ -20,59 +23,120 @@ class DetailEditScreen extends StatefulWidget {
 class _DetailEditScreenState extends State<DetailEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _repository = ServiceLocator.instance.priceObservationRepository;
+  final _lookupUseCase = ServiceLocator.instance.lookupProductByBarcodeUseCase;
 
-  late final TextEditingController _productNameController;
   late final TextEditingController _storeNameController;
+  late final TextEditingController _brandController;
+  late final TextEditingController _categoryController;
   late final TextEditingController _priceController;
-  late final TextEditingController _noteController;
 
-  late final PriceObservation _baseObservation;
+  late PriceObservation _baseObservation;
+  DetailEditStateHolder? _stateHolder;
   bool _isSaving = false;
+  bool _isLoadingProductInfo = false;
+  String? _sourceScreen;
 
   @override
   void initState() {
     super.initState();
+    _sourceScreen = widget.args.sourceScreen;
+    _baseObservation = _initialObservation();
 
-    final now = DateTime.now();
-    final scannedCode = widget.args.scannedCode;
-    _baseObservation = widget.args.observation ??
-        PriceObservation(
-          product: Product(
-            barcode: scannedCode ?? 'MANUAL-BARCODE',
-            name: '',
-          ),
-          store: const Store(name: ''),
-          priceCents: 0,
-          latitude: 0,
-          longitude: 0,
-          observedAt: now,
-        );
-
-    _productNameController = TextEditingController(
-      text: _baseObservation.product.name ?? '',
-    );
     _storeNameController = TextEditingController(
       text: _baseObservation.store.name,
+    );
+    _brandController = TextEditingController(
+      text: _baseObservation.product.brand ?? '',
+    );
+    _categoryController = TextEditingController(
+      text: _baseObservation.product.category ?? '',
     );
     _priceController = TextEditingController(
       text: _baseObservation.price.toStringAsFixed(2),
     );
-    _noteController = TextEditingController(
-      text: _baseObservation.note ?? '',
+
+    _stateHolder = DetailEditStateHolder(
+      sourceScreen: _sourceScreen,
+      initialStoreName: _storeNameController.text,
+      initialBrand: _brandController.text,
+      initialCategory: _categoryController.text,
+      initialPriceText: _priceController.text,
     );
+
+    if (_shouldLookupProduct()) {
+      _lookupProductData();
+    }
   }
 
   @override
   void dispose() {
-    _productNameController.dispose();
     _storeNameController.dispose();
+    _brandController.dispose();
+    _categoryController.dispose();
     _priceController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
+  PriceObservation _initialObservation() {
+    final now = DateTime.now();
+    final observationFromArgs = widget.args.observation;
+    if (observationFromArgs != null) {
+      return observationFromArgs;
+    }
+
+    return PriceObservation(
+      product: Product(
+        barcode: widget.args.scannedCode ?? 'MANUAL-BARCODE',
+        name: '',
+      ),
+      store: const Store(name: ''),
+      priceCents: 0,
+      latitude: 0,
+      longitude: 0,
+      observedAt: now,
+    );
+  }
+
+  bool _shouldLookupProduct() {
+    return _sourceScreen == ScreenOrigins.screen1 &&
+        widget.args.scannedCode != null &&
+        widget.args.scannedCode!.trim().isNotEmpty;
+  }
+
+  Future<void> _lookupProductData() async {
+    setState(() {
+      _isLoadingProductInfo = true;
+    });
+
+    final lookedUp = await _lookupUseCase(_baseObservation.product.barcode);
+    if (!mounted) {
+      return;
+    }
+
+    _baseObservation = _baseObservation.copyWith(product: lookedUp);
+    _brandController.text = lookedUp.brand ?? '';
+    _categoryController.text = lookedUp.category ?? '';
+
+    _stateHolder = DetailEditStateHolder(
+      sourceScreen: _sourceScreen,
+      initialStoreName: _storeNameController.text,
+      initialBrand: _brandController.text,
+      initialCategory: _categoryController.text,
+      initialPriceText: _priceController.text,
+    );
+
+    setState(() {
+      _isLoadingProductInfo = false;
+    });
+  }
+
+  Future<void> _confirm() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final state = _stateHolder!;
+    if (state.isAnyFieldInEditMode) {
       return;
     }
 
@@ -80,23 +144,22 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isSaving = true;
     });
 
+    state.setStoreName(_storeNameController.text.trim());
+    state.setBrand(_brandController.text.trim());
+    state.setCategory(_categoryController.text.trim());
+    state.setPriceText(_priceController.text.trim());
+
     final updated = _baseObservation.copyWith(
-      product: _baseObservation.product.copyWith(
-        barcode: _baseObservation.product.barcode.trim().isEmpty
-            ? 'MANUAL-BARCODE'
-            : _baseObservation.product.barcode,
-        name: _productNameController.text.trim(),
-      ),
+      product: state.applyToProduct(_baseObservation.product),
       store: _baseObservation.store.copyWith(
-        name: _storeNameController.text.trim(),
+        name: state.storeName,
       ),
-      priceCents:
-          ((double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0) *
-                  100)
-              .round(),
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
+      priceCents: ((double.tryParse(
+                    state.priceText.replaceAll(',', '.'),
+                  ) ??
+                  0) *
+              100)
+          .round(),
     );
 
     if (updated.id == null) {
@@ -113,97 +176,226 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isSaving = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Observacao salva.')),
-    );
+    _goBackToOrigin();
+  }
+
+  void _cancel() {
+    final state = _stateHolder!;
+
+    if (state.isAnyFieldInEditMode) {
+      // Durante edicao de brand/category: reset local sem navegar.
+      state.restoreInitialSnapshot();
+      _storeNameController.text = state.storeName;
+      _brandController.text = state.brand;
+      _categoryController.text = state.category;
+      _priceController.text = state.priceText;
+      setState(() {});
+      return;
+    }
+
+    _goBackToOrigin();
+  }
+
+  void _goBackToOrigin() {
+    final route = _sourceScreen == ScreenOrigins.screen2
+        ? AppRoutes.history
+        : AppRoutes.scanner;
+
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, route);
+  }
+
+  void _onBrandEditOrSave() {
+    final state = _stateHolder!;
+    state.setBrand(_brandController.text);
+    state.toggleBrandEditOrSave();
+    setState(() {});
+  }
+
+  void _onCategoryEditOrSave() {
+    final state = _stateHolder!;
+    state.setCategory(_categoryController.text);
+    state.toggleCategoryEditOrSave();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = _stateHolder!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhe / Edicao')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              _ScanOriginInfo(args: widget.args),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _productNameController,
-                decoration: const InputDecoration(labelText: 'Produto'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe o produto.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _storeNameController,
-                decoration: const InputDecoration(labelText: 'Loja'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a loja.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                initialValue: _baseObservation.product.barcode,
-                decoration: const InputDecoration(labelText: 'Codigo lido'),
-                readOnly: true,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Preco'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Observacoes'),
-                minLines: 2,
-                maxLines: 4,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _save,
-                  child: Text(_isSaving ? 'Salvando...' : 'Salvar'),
-                ),
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('Detalhe / Edicao'),
+        actions: [
+          IconButton(
+            tooltip: 'Historico',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.history),
+            icon: const Icon(Icons.history),
           ),
+        ],
+      ),
+      body: _isLoadingProductInfo
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ProductInfoSection(
+                      name: _baseObservation.product.name,
+                      barcode: _baseObservation.product.barcode,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _storeNameController,
+                      decoration:
+                          const InputDecoration(labelText: 'Estabelecimento'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Informe o estabelecimento.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _EditableFieldRow(
+                      label: 'Brand',
+                      controller: _brandController,
+                      enabled: state.isBrandEnabled,
+                      sideButtonLabel:
+                          state.canToggleBrandByButton
+                              ? (state.isBrandInToggleEditMode ? 'save' : 'edit')
+                              : null,
+                      onSideButtonPressed:
+                          state.canToggleBrandByButton
+                              ? _onBrandEditOrSave
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    _EditableFieldRow(
+                      label: 'Category',
+                      controller: _categoryController,
+                      enabled: state.isCategoryEnabled,
+                      sideButtonLabel:
+                          state.canToggleCategoryByButton
+                              ? (state.isCategoryInToggleEditMode
+                                  ? 'save'
+                                  : 'edit')
+                              : null,
+                      onSideButtonPressed:
+                          state.canToggleCategoryByButton
+                              ? _onCategoryEditOrSave
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _priceController,
+                      decoration: const InputDecoration(labelText: 'Preco'),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        if (!state.isAnyFieldInEditMode)
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isSaving ? null : _confirm,
+                              child: Text(_isSaving ? 'Salvando...' : 'Confirmar'),
+                            ),
+                          ),
+                        if (!state.isAnyFieldInEditMode) const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _cancel,
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ProductInfoSection extends StatelessWidget {
+  const _ProductInfoSection({
+    required this.name,
+    required this.barcode,
+  });
+
+  final String? name;
+  final String barcode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name == null || name!.trim().isEmpty ? 'Produto' : name!,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text('Codigo: $barcode'),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ScanOriginInfo extends StatelessWidget {
-  const _ScanOriginInfo({required this.args});
+class _EditableFieldRow extends StatelessWidget {
+  const _EditableFieldRow({
+    required this.label,
+    required this.controller,
+    required this.enabled,
+    this.sideButtonLabel,
+    this.onSideButtonPressed,
+  });
 
-  final DetailEditArgs args;
+  final String label;
+  final TextEditingController controller;
+  final bool enabled;
+  final String? sideButtonLabel;
+  final VoidCallback? onSideButtonPressed;
 
   @override
   Widget build(BuildContext context) {
-    if (args.scannedCode == null && args.sourceScreen == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Card(
-      child: ListTile(
-        title: Text(args.scannedCode ?? 'Codigo nao informado'),
-        subtitle: Text('Origem: ${args.sourceScreen ?? 'desconhecida'}'),
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: controller,
+            enabled: enabled,
+            decoration: InputDecoration(labelText: label),
+          ),
+        ),
+        if (sideButtonLabel != null) ...[
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 56,
+            child: TextButton(
+              onPressed: onSideButtonPressed,
+              child: Text(sideButtonLabel!),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
