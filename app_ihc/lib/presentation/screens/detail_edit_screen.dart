@@ -172,8 +172,6 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     });
 
     try {
-      final now = DateTime.now().toUtc();
-      final geolocation = await _geolocationService.getCurrentPosition();
       final productWithFallbackBarcode = state
           .applyToProduct(_baseObservation.product)
           .copyWith(
@@ -181,19 +179,34 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                 ? 'MANUAL-BARCODE'
                 : _baseObservation.product.barcode,
           );
+      final store = _baseObservation.store.copyWith(name: state.storeName);
 
-      final newObservation = PriceObservation(
-        product: productWithFallbackBarcode,
-        store: _baseObservation.store.copyWith(name: state.storeName),
-        priceCents: priceCents,
-        latitude: geolocation?.latitude ?? _baseObservation.latitude,
-        longitude: geolocation?.longitude ?? _baseObservation.longitude,
-        observedAt: now,
-        note: _baseObservation.note,
-        createdAt: now,
-      );
+      final isExistingObservation = _baseObservation.id != null;
+      final isPriceChanged = priceCents != _baseObservation.priceCents;
 
-      await _repository.saveObservation(newObservation);
+      if (isExistingObservation && !isPriceChanged) {
+        // Mudancas dimensionais: atualiza observacao atual sem criar novo registro.
+        final updatedObservation = _baseObservation.copyWith(
+          product: productWithFallbackBarcode,
+          store: store,
+        );
+        await _repository.updateObservation(updatedObservation);
+      } else {
+        // Mudanca de preco (ou novo cadastro): cria nova observacao.
+        final now = DateTime.now().toUtc();
+        final geolocation = await _geolocationService.getCurrentPosition();
+        final newObservation = PriceObservation(
+          product: productWithFallbackBarcode,
+          store: store,
+          priceCents: priceCents,
+          latitude: geolocation?.latitude ?? _baseObservation.latitude,
+          longitude: geolocation?.longitude ?? _baseObservation.longitude,
+          observedAt: now,
+          note: _baseObservation.note,
+          createdAt: now,
+        );
+        await _repository.saveObservation(newObservation);
+      }
     } catch (_) {
       if (mounted) {
         _showFeedback('Erro ao salvar no banco local. Tente novamente.');
@@ -212,7 +225,13 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       _isSaving = false;
     });
 
-    _showFeedback('Observacao salva com sucesso.');
+    final changedPrice = priceCents != _baseObservation.priceCents;
+    final createdNewObservation = _baseObservation.id == null || changedPrice;
+    _showFeedback(
+      createdNewObservation
+          ? 'Observacao de preco salva com sucesso.'
+          : 'Dados atualizados sem criar nova observacao de preco.',
+    );
     _goBackToOrigin();
   }
 
