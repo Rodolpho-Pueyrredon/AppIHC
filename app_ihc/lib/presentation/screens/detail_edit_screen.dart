@@ -34,9 +34,13 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     super.initState();
 
     final now = DateTime.now();
+    final scannedCode = widget.args.scannedCode;
     _baseObservation = widget.args.observation ??
         PriceObservation(
-          product: const Product(barcode: 'MANUAL-BARCODE', name: ''),
+          product: Product(
+            barcode: scannedCode ?? 'MANUAL-BARCODE',
+            name: '',
+          ),
           store: const Store(name: ''),
           priceCents: 0,
           latitude: 0,
@@ -124,6 +128,8 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
           key: _formKey,
           child: Column(
             children: [
+              _ScanOriginInfo(args: widget.args),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _productNameController,
                 decoration: const InputDecoration(labelText: 'Produto'),
@@ -144,6 +150,12 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: _baseObservation.product.barcode,
+                decoration: const InputDecoration(labelText: 'Codigo lido'),
+                readOnly: true,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -171,6 +183,26 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScanOriginInfo extends StatelessWidget {
+  const _ScanOriginInfo({required this.args});
+
+  final DetailEditArgs args;
+
+  @override
+  Widget build(BuildContext context) {
+    if (args.scannedCode == null && args.sourceScreen == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: ListTile(
+        title: Text(args.scannedCode ?? 'Codigo nao informado'),
+        subtitle: Text('Origem: ${args.sourceScreen ?? 'desconhecida'}'),
       ),
     );
   }

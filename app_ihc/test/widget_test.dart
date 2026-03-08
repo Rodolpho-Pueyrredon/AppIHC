@@ -6,6 +6,6 @@ void main() {
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('Scanner'), findsOneWidget);
-    expect(find.text('Simular leitura'), findsOneWidget);
+    expect(find.text('Ler barcode / QR code'), findsOneWidget);
   });
 }
