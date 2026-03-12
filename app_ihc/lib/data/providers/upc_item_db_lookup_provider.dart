@@ -15,17 +15,18 @@ class UpcItemDbLookupProvider implements ProductLookupProvider {
   @override
   Future<Product?> fetchByBarcode(String barcode) async {
     final key = _apiKey?.trim();
-    if (key == null || key.isEmpty) {
-      // Falha silenciosa quando chave nao esta configurada.
-      return null;
-    }
 
     try {
-      final uri = Uri.parse('https://api.upcitemdb.com/prod/v1/lookup')
+      final hasApiKey = key != null && key.isNotEmpty;
+      final uri = Uri.parse(
+        hasApiKey
+            ? 'https://api.upcitemdb.com/prod/v1/lookup'
+            : 'https://api.upcitemdb.com/prod/trial/lookup',
+      )
           .replace(queryParameters: {'upc': barcode});
       final json = await _httpJsonClient.getJson(
         uri,
-        headers: {'user_key': key},
+        headers: hasApiKey ? {'user_key': key} : null,
       );
 
       if (json is! Map<String, dynamic>) {
