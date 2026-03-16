@@ -11,12 +11,20 @@ class ScannerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scanner'),
+        automaticallyImplyLeading: false,
+        toolbarHeight: 112,
+        backgroundColor: Colors.red.shade50,
+        surfaceTintColor: Colors.red.shade50,
+        iconTheme: const IconThemeData(size: 48),
+        title: const Text('Scanner', style: TextStyle(fontSize: 24)),
         actions: [
           IconButton(
             tooltip: 'Historico',
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.history),
-            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.pushReplacementNamed(
+              context,
+              AppRoutes.history,
+            ),
+            icon: const Icon(Icons.history, size: 48),
           ),
         ],
       ),
@@ -24,7 +32,7 @@ class ScannerScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: ScannerArea(
           onCodeDetected: (code) {
-            Navigator.pushNamed(
+            Navigator.pushReplacementNamed(
               context,
               AppRoutes.detailEdit,
               arguments: DetailEditArgs(
@@ -48,3 +56,7 @@ class ScannerScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+

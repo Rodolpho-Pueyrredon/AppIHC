@@ -41,18 +41,21 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
 
   @override
   Future<PriceObservation> saveObservation(PriceObservation observation) async {
-    if (observation.product.barcode.trim().isEmpty) {
+    final barcode = observation.product.barcode.trim();
+    if (barcode.isEmpty) {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
-    final product = await _productRepository.upsertByBarcode(observation.product);
+    final product = await _productRepository.upsertByBarcode(
+      observation.product.copyWith(barcode: barcode),
+    );
     final store = await _storeRepository.upsertByName(observation.store.name);
 
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final insertedId = await _sqliteService.insert(
       'price_observations',
       {
-        'product_id': product.id,
+        'product_barcode': product.barcode,
         'store_id': store.id,
         'price_cents': observation.priceCents,
         'latitude': observation.latitude,
@@ -77,17 +80,21 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
     if (observation.id == null) {
       throw ArgumentError('Observation ID is required for update.');
     }
-    if (observation.product.barcode.trim().isEmpty) {
+
+    final barcode = observation.product.barcode.trim();
+    if (barcode.isEmpty) {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
-    final product = await _productRepository.upsertByBarcode(observation.product);
+    final product = await _productRepository.upsertByBarcode(
+      observation.product.copyWith(barcode: barcode),
+    );
     final store = await _storeRepository.upsertByName(observation.store.name);
 
     await _sqliteService.update(
       'price_observations',
       {
-        'product_id': product.id,
+        'product_barcode': product.barcode,
         'store_id': store.id,
         'price_cents': observation.priceCents,
         'latitude': observation.latitude,
@@ -122,11 +129,9 @@ SELECT
   po.observed_at AS po_observed_at,
   po.notes AS po_notes,
   po.created_at AS po_created_at,
-  p.id AS p_id,
   p.barcode AS p_barcode,
-  p.name AS p_name,
-  p.brand AS p_brand,
   p.category AS p_category,
+  p.brand AS p_brand,
   p.created_at AS p_created_at,
   p.updated_at AS p_updated_at,
   s.id AS s_id,
@@ -135,7 +140,7 @@ SELECT
   s.created_at AS s_created_at,
   s.updated_at AS s_updated_at
 FROM price_observations po
-JOIN products p ON p.id = po.product_id
+JOIN products p ON p.barcode = po.product_barcode
 JOIN stores s ON s.id = po.store_id
 $where
 $orderBy
@@ -143,14 +148,14 @@ $orderBy
   }
 
   PriceObservation _fromJoinedRow(Map<String, Object?> row) {
+    final category = row['p_category'] as String?;
     return PriceObservation(
       id: row['po_id'] as int?,
       product: Product(
-        id: row['p_id'] as int?,
         barcode: row['p_barcode'] as String? ?? '',
-        name: row['p_name'] as String?,
+        name: category,
         brand: row['p_brand'] as String?,
-        category: row['p_category'] as String?,
+        category: category,
         createdAt: _parseDate(row['p_created_at']),
         updatedAt: _parseDate(row['p_updated_at']),
       ),

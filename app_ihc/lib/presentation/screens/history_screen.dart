@@ -1,6 +1,7 @@
 import 'package:app_ihc/core/constants/app_routes.dart';
 import 'package:app_ihc/core/constants/screen_origins.dart';
 import 'package:app_ihc/core/di/service_locator.dart';
+import 'package:app_ihc/core/utils/price_parser.dart';
 import 'package:app_ihc/domain/models/price_observation.dart';
 import 'package:app_ihc/presentation/navigation/detail_edit_args.dart';
 import 'package:flutter/material.dart';
@@ -73,7 +74,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _openDetail(PriceObservation observation) async {
-    await Navigator.pushNamed(
+    await Navigator.pushReplacementNamed(
       context,
       AppRoutes.detailEdit,
       arguments: DetailEditArgs(
@@ -81,7 +82,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         sourceScreen: ScreenOrigins.screen2,
       ),
     );
-    await _loadItems();
   }
 
   List<PriceObservation> _filteredItems() {
@@ -91,8 +91,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return _allItems.where((item) {
-      final productName = (item.product.name ?? '').toLowerCase();
-      return productName.contains(query);
+      final productLabel =
+          ((item.product.brand ?? item.product.name) ?? '').toLowerCase();
+      return productLabel.contains(query);
     }).toList();
   }
 
@@ -102,10 +103,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        toolbarHeight: 112,
+        backgroundColor: Colors.red.shade50,
+        surfaceTintColor: Colors.red.shade50,
+        iconTheme: const IconThemeData(size: 48),
         title: TextField(
+          style: const TextStyle(fontSize: 24),
           controller: _searchController,
           textInputAction: TextInputAction.search,
           decoration: const InputDecoration(
+            hintStyle: TextStyle(fontSize: 24),
             hintText: 'Buscar produto...',
             border: InputBorder.none,
           ),
@@ -113,8 +121,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           TextButton.icon(
             onPressed: _goToScanner,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Ler'),
+            icon: const Icon(Icons.qr_code_scanner, size: 48),
+            label: const Text('Ler', style: TextStyle(fontSize: 24)),
           ),
         ],
       ),
@@ -158,23 +166,30 @@ class _HistoryObservationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final productName = observation.product.name ?? 'Produto sem nome';
-    final brand = observation.product.brand ?? 'Marca nao informada';
+    final productName =
+        observation.product.brand ?? observation.product.name ?? 'Marca nao informada';
     final category = observation.product.category ?? 'Categoria nao informada';
     final storeName = observation.store.name;
     final date = observation.observedAt.toLocal().toString().split('.').first;
-    final price = (observation.priceCents / 100).toStringAsFixed(2);
+    final price = formatPriceFromCents(observation.priceCents);
 
     return ListTile(
       onTap: onTap,
       title: Text(productName),
       subtitle: Text(
-        '$brand - $category\n$storeName - $date',
+        '$category\n$storeName - $date',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text('R\$ $price'),
+      trailing: Text(price),
       isThreeLine: true,
     );
   }
 }
+
+
+
+
+
+
+

@@ -25,69 +25,62 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Product?> findById(int id) async {
-    final rows = await _sqliteService.query(
-      _table,
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _fromRow(rows.first);
-  }
-
-  @override
   Future<Product> upsertByBarcode(Product product) async {
+    final normalizedBarcode = product.barcode.trim();
+    if (normalizedBarcode.isEmpty) {
+      throw ArgumentError('Product barcode is required for upsert.');
+    }
+
     final nowIso = DateTime.now().toUtc().toIso8601String();
-    final existing = await findByBarcode(product.barcode);
+    final existing = await findByBarcode(normalizedBarcode);
 
     if (existing != null) {
       await _sqliteService.update(
         _table,
         {
-          'name': product.name,
-          'brand': product.brand,
           'category': product.category,
+          'brand': product.brand,
           'updated_at': nowIso,
         },
-        where: 'id = ?',
-        whereArgs: [existing.id],
+        where: 'barcode = ?',
+        whereArgs: [normalizedBarcode],
       );
 
-      final updated = await findById(existing.id!);
-      return updated ?? existing;
+      return (await findByBarcode(normalizedBarcode)) ??
+          existing.copyWith(
+            name: product.name,
+            brand: product.brand,
+            category: product.category,
+            updatedAt: DateTime.parse(nowIso),
+          );
     }
 
-    final insertedId = await _sqliteService.insert(
+    await _sqliteService.insert(
       _table,
       {
-        'barcode': product.barcode,
-        'name': product.name,
-        'brand': product.brand,
+        'barcode': normalizedBarcode,
         'category': product.category,
+        'brand': product.brand,
         'created_at': nowIso,
         'updated_at': nowIso,
       },
     );
 
-    final inserted = await findById(insertedId);
-    return inserted ??
+    return (await findByBarcode(normalizedBarcode)) ??
         product.copyWith(
-          id: insertedId,
+          barcode: normalizedBarcode,
           createdAt: DateTime.parse(nowIso),
           updatedAt: DateTime.parse(nowIso),
         );
   }
 
   Product _fromRow(Map<String, Object?> row) {
+    final category = row['category'] as String?;
     return Product(
-      id: row['id'] as int?,
       barcode: row['barcode'] as String? ?? '',
-      name: row['name'] as String?,
+      name: category,
       brand: row['brand'] as String?,
-      category: row['category'] as String?,
+      category: category,
       createdAt: _parseDate(row['created_at']),
       updatedAt: _parseDate(row['updated_at']),
     );

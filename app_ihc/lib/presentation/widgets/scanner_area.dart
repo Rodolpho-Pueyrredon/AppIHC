@@ -30,6 +30,7 @@ class _ScannerAreaState extends State<ScannerArea>
 
   bool _hasDetected = false;
   bool _isStartingCamera = false;
+  bool _isStoppingCamera = false;
   bool _isCameraStarted = false;
   String? _cameraError;
   bool _reportedBuilderError = false;
@@ -46,7 +47,9 @@ class _ScannerAreaState extends State<ScannerArea>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (_supportsRealScanner) {
-      _startCamera();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startCamera();
+      });
     }
   }
 
@@ -71,15 +74,39 @@ class _ScannerAreaState extends State<ScannerArea>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      if (_isCameraStarted) {
-        _controller.stop();
-        _isCameraStarted = false;
+      _stopCamera();
+    }
+  }
+
+  bool _isAlreadyInitializedError(Object error) {
+    return error.toString().contains('controllerAlreadyInitialized');
+  }
+
+  Future<void> _stopCamera() async {
+    if (_isStoppingCamera || !_isCameraStarted) {
+      return;
+    }
+
+    _isStoppingCamera = true;
+    try {
+      await _controller.stop();
+    } catch (_) {
+      // O estado local ainda precisa ser resetado para permitir nova tentativa.
+    } finally {
+      _isCameraStarted = false;
+      _isStoppingCamera = false;
+      if (mounted) {
+        setState(() {});
       }
     }
   }
 
   Future<void> _startCamera() async {
-    if (_isStartingCamera || _isCameraStarted) {
+    if (!mounted || _hasDetected || _isStartingCamera || _isStoppingCamera) {
+      return;
+    }
+
+    if (_isCameraStarted) {
       return;
     }
 
@@ -93,11 +120,12 @@ class _ScannerAreaState extends State<ScannerArea>
       await _controller.start();
       _isCameraStarted = true;
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('controllerAlreadyInitialized')) {
+      if (_isAlreadyInitializedError(e)) {
         _isCameraStarted = true;
         return;
       }
+
+      final message = e.toString();
       if (!mounted) {
         return;
       }
@@ -113,7 +141,7 @@ class _ScannerAreaState extends State<ScannerArea>
     }
   }
 
-  void _onDetect(BarcodeCapture capture) {
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_hasDetected) {
       return;
     }
@@ -126,8 +154,7 @@ class _ScannerAreaState extends State<ScannerArea>
     }
 
     _hasDetected = true;
-    _controller.stop();
-    _isCameraStarted = false;
+    await _stopCamera();
     widget.onCodeDetected(rawValue.trim());
   }
 
@@ -199,8 +226,14 @@ class _ScannerAreaState extends State<ScannerArea>
             width: double.infinity,
             child: MobileScanner(
               controller: _controller,
+              fit: BoxFit.cover,
               onDetect: _onDetect,
               errorBuilder: (context, error, child) {
+                if (_isAlreadyInitializedError(error)) {
+                  _isCameraStarted = true;
+                  return child ?? const SizedBox.expand();
+                }
+
                 if (!_reportedBuilderError) {
                   _reportedBuilderError = true;
                   _notifyScanError(error.toString());
@@ -211,6 +244,15 @@ class _ScannerAreaState extends State<ScannerArea>
               },
             ),
           ),
+          if (!_isCameraStarted && _cameraError == null)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black12,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
           const Positioned.fill(child: _ScannerTargetOverlay()),
           Positioned(
             top: 12,

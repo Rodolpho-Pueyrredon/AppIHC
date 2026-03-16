@@ -36,6 +36,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
   DetailEditStateHolder? _stateHolder;
   bool _isSaving = false;
   bool _isLoadingProductInfo = false;
+  bool _isFormattingPrice = false;
   String? _sourceScreen;
 
   @override
@@ -54,8 +55,9 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       text: _baseObservation.product.category ?? '',
     );
     _priceController = TextEditingController(
-      text: _baseObservation.price.toStringAsFixed(2),
+      text: formatPriceFromCents(_baseObservation.priceCents),
     );
+    _priceController.addListener(_onPriceChanged);
 
     _stateHolder = DetailEditStateHolder(
       sourceScreen: _sourceScreen,
@@ -75,6 +77,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     _storeNameController.dispose();
     _brandController.dispose();
     _categoryController.dispose();
+    _priceController.removeListener(_onPriceChanged);
     _priceController.dispose();
     super.dispose();
   }
@@ -130,11 +133,11 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
 
       if ((lookedUp.brand ?? '').trim().isEmpty &&
           (lookedUp.category ?? '').trim().isEmpty) {
-        _showFeedback('Nao foi possivel completar lookup de API. Preencha manualmente.');
+        _showFeedback('Produto nao encontrado no banco local. Preencha manualmente.');
       }
     } catch (_) {
       if (mounted) {
-        _showFeedback('Erro ao consultar API de produto. Preencha manualmente.');
+        _showFeedback('Erro ao consultar o banco local de produtos. Preencha manualmente.');
       }
     } finally {
       if (mounted) {
@@ -145,6 +148,23 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     }
   }
 
+  void _onPriceChanged() {
+    if (_isFormattingPrice) {
+      return;
+    }
+
+    final formatted = formatPriceInput(_priceController.text);
+    if (_priceController.text == formatted) {
+      return;
+    }
+
+    _isFormattingPrice = true;
+    _priceController.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+    _isFormattingPrice = false;
+  }
   Future<void> _confirm() async {
     if (!_formKey.currentState!.validate()) {
       _showFeedback('Revise os campos obrigatorios antes de confirmar.');
@@ -302,11 +322,6 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
         ? AppRoutes.history
         : AppRoutes.scanner;
 
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-      return;
-    }
-
     Navigator.pushReplacementNamed(context, route);
   }
 
@@ -330,12 +345,17 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalhe / Edicao'),
+        automaticallyImplyLeading: false,
+        toolbarHeight: 112,
+        backgroundColor: Colors.red.shade50,
+        surfaceTintColor: Colors.red.shade50,
+        iconTheme: const IconThemeData(size: 48),
+        title: const Text('Detalhe / Edicao', style: TextStyle(fontSize: 24)),
         actions: [
           IconButton(
             tooltip: 'Historico',
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.history),
-            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.history),
+            icon: const Icon(Icons.history, size: 48),
           ),
         ],
       ),
@@ -349,7 +369,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _ProductInfoSection(
-                      name: _baseObservation.product.name,
+                      name: _baseObservation.product.name ?? _baseObservation.product.category,
                       barcode: _baseObservation.product.barcode,
                     ),
                     const SizedBox(height: 16),
@@ -398,9 +418,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
                     TextFormField(
                       controller: _priceController,
                       decoration: const InputDecoration(labelText: 'Preco'),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      keyboardType: TextInputType.number,
                       validator: (value) {
                         if (parsePriceToCents(value ?? '') == null) {
                           return 'Informe um preco valido.';
@@ -519,3 +537,16 @@ class _EditableFieldRow extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

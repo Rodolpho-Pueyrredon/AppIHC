@@ -1,12 +1,7 @@
-import 'dart:io';
-
-import 'package:app_ihc/core/constants/database_schema.dart';
+import 'package:app_ihc/database/app_database.dart';
 import 'package:app_ihc/domain/services/sqlite_service_contract.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart' as sqflite;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SQLiteService implements SQLiteServiceContract {
   Database? _database;
@@ -32,29 +27,13 @@ class SQLiteService implements SQLiteServiceContract {
     }
 
     _initFuture = () async {
-      final dir = await getApplicationDocumentsDirectory();
-      final dbPath = p.join(dir.path, DatabaseSchema.databaseName);
-      debugPrint('SQLite DB path: $dbPath');
+      _database = await AppDatabase.instance;
+      final path = _database?.path;
+      if (path != null && path.isNotEmpty) {
+        debugPrint('SQLite DB path: $path');
+      }
 
-      final factory = _databaseFactoryForCurrentPlatform();
-      _database = await factory.openDatabase(
-        dbPath,
-        options: OpenDatabaseOptions(
-          version: DatabaseSchema.databaseVersion,
-          onCreate: (db, _) async {
-            await db.execute(DatabaseSchema.createProductsTable);
-            await db.execute(DatabaseSchema.createStoresTable);
-            await db.execute(DatabaseSchema.createStoresNormalizedNameIndex);
-            await db.execute(DatabaseSchema.createPriceObservationsTable);
-            await db.execute(DatabaseSchema.createPriceObsProductIdIndex);
-            await db.execute(DatabaseSchema.createPriceObsStoreIdIndex);
-            await db.execute(DatabaseSchema.createPriceObsObservedAtIndex);
-          },
-          onConfigure: (db) async {
-            await db.execute('PRAGMA foreign_keys = ON;');
-          },
-        ),
-      );
+      await _database!.execute('PRAGMA foreign_keys = ON;');
     }();
 
     try {
@@ -62,15 +41,6 @@ class SQLiteService implements SQLiteServiceContract {
     } finally {
       _initFuture = null;
     }
-  }
-
-  DatabaseFactory _databaseFactoryForCurrentPlatform() {
-    if (Platform.isWindows || Platform.isLinux) {
-      sqfliteFfiInit();
-      return databaseFactoryFfi;
-    }
-
-    return sqflite.databaseFactory;
   }
 
   @override

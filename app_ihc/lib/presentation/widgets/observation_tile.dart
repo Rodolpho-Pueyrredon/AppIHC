@@ -14,7 +14,7 @@ class ObservationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = observation.observedAt.toIso8601String().split('T').first;
-    final productName = observation.product.name ?? 'Produto sem nome';
+    final productName = observation.product.name ?? observation.product.category ?? 'Produto sem categoria';
     return ListTile(
       onTap: onTap,
       title: Text(productName),
@@ -23,3 +23,4 @@ class ObservationTile extends StatelessWidget {
     );
   }
 }
+

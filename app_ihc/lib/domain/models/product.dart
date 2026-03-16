@@ -1,6 +1,5 @@
 class Product {
   const Product({
-    this.id,
     required this.barcode,
     this.name,
     this.brand,
@@ -9,7 +8,6 @@ class Product {
     this.updatedAt,
   });
 
-  final int? id;
   final String barcode;
   final String? name;
   final String? brand;
@@ -18,7 +16,6 @@ class Product {
   final DateTime? updatedAt;
 
   Product copyWith({
-    int? id,
     String? barcode,
     String? name,
     String? brand,
@@ -27,7 +24,6 @@ class Product {
     DateTime? updatedAt,
   }) {
     return Product(
-      id: id ?? this.id,
       barcode: barcode ?? this.barcode,
       name: name ?? this.name,
       brand: brand ?? this.brand,
