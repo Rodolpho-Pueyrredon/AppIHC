@@ -4,6 +4,8 @@ import 'package:app_ihc/core/di/service_locator.dart';
 import 'package:app_ihc/core/utils/price_parser.dart';
 import 'package:app_ihc/domain/models/price_observation.dart';
 import 'package:app_ihc/presentation/navigation/detail_edit_args.dart';
+import 'package:app_ihc/presentation/widgets/android_back_to_background.dart';
+import 'package:app_ihc/presentation/widgets/session_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -101,56 +103,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final filteredItems = _filteredItems();
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        toolbarHeight: 112,
-        backgroundColor: Colors.red.shade50,
-        surfaceTintColor: Colors.red.shade50,
-        iconTheme: const IconThemeData(size: 48),
-        title: TextField(
-          style: const TextStyle(fontSize: 24),
-          controller: _searchController,
-          textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintStyle: TextStyle(fontSize: 24),
-            hintText: 'Buscar produto...',
-            border: InputBorder.none,
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: _goToScanner,
-            icon: const Icon(Icons.qr_code_scanner, size: 48),
-            label: const Text('Ler', style: TextStyle(fontSize: 24)),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadItems,
-              child: filteredItems.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 120),
-                        Center(
-                          child: Text('Nenhum item encontrado no historico.'),
-                        ),
-                      ],
-                    )
-                  : ListView.separated(
-                      itemCount: filteredItems.length,
-                      separatorBuilder: (_, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return _HistoryObservationTile(
-                          observation: item,
-                          onTap: () => _openDetail(item),
-                        );
-                      },
-                    ),
+    return AndroidBackToBackground(
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          toolbarHeight: 112,
+          backgroundColor: Colors.red.shade50,
+          surfaceTintColor: Colors.red.shade50,
+          iconTheme: const IconThemeData(size: 48),
+          title: SessionAppBarTitle(
+            child: TextField(
+              style: const TextStyle(fontSize: 24),
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                hintStyle: TextStyle(fontSize: 24),
+                hintText: 'Buscar produto...',
+                border: InputBorder.none,
+              ),
             ),
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: _goToScanner,
+              icon: const Icon(Icons.qr_code_scanner, size: 48),
+              label: const Text('Ler', style: TextStyle(fontSize: 24)),
+            ),
+            const LogoutActionButton(),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadItems,
+                child: filteredItems.isEmpty
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 120),
+                          Center(
+                            child: Text('Nenhum item encontrado no historico.'),
+                          ),
+                        ],
+                      )
+                    : ListView.separated(
+                        itemCount: filteredItems.length,
+                        separatorBuilder: (_, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          return _HistoryObservationTile(
+                            observation: item,
+                            onTap: () => _openDetail(item),
+                          );
+                        },
+                      ),
+              ),
+      ),
     );
   }
 }
@@ -186,10 +193,3 @@ class _HistoryObservationTile extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-

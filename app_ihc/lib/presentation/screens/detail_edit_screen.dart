@@ -7,6 +7,8 @@ import 'package:app_ihc/domain/models/product.dart';
 import 'package:app_ihc/domain/models/store.dart';
 import 'package:app_ihc/presentation/navigation/detail_edit_args.dart';
 import 'package:app_ihc/presentation/state/detail_edit_state_holder.dart';
+import 'package:app_ihc/presentation/widgets/android_back_to_background.dart';
+import 'package:app_ihc/presentation/widgets/session_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class DetailEditScreen extends StatefulWidget {
@@ -165,6 +167,7 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     );
     _isFormattingPrice = false;
   }
+
   Future<void> _confirm() async {
     if (!_formKey.currentState!.validate()) {
       _showFeedback('Revise os campos obrigatorios antes de confirmar.');
@@ -205,14 +208,12 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
       final isPriceChanged = priceCents != _baseObservation.priceCents;
 
       if (isExistingObservation && !isPriceChanged) {
-        // Mudancas dimensionais: atualiza observacao atual sem criar novo registro.
         final updatedObservation = _baseObservation.copyWith(
           product: productWithFallbackBarcode,
           store: store,
         );
         await _repository.updateObservation(updatedObservation);
       } else {
-        // Mudanca de preco (ou novo cadastro): cria nova observacao.
         final now = DateTime.now().toUtc();
         final geolocation = await _geolocationService.getCurrentPosition();
         final newObservation = PriceObservation(
@@ -259,7 +260,6 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
     final state = _stateHolder!;
 
     if (state.isAnyFieldInEditMode) {
-      // Durante edicao de brand/category: reset local sem navegar.
       state.restoreInitialSnapshot();
       _storeNameController.text = state.storeName;
       _brandController.text = state.brand;
@@ -343,125 +343,129 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
   Widget build(BuildContext context) {
     final state = _stateHolder!;
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        toolbarHeight: 112,
-        backgroundColor: Colors.red.shade50,
-        surfaceTintColor: Colors.red.shade50,
-        iconTheme: const IconThemeData(size: 48),
-        title: const Text('Detalhe / Edicao', style: TextStyle(fontSize: 24)),
-        actions: [
-          IconButton(
-            tooltip: 'Historico',
-            onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.history),
-            icon: const Icon(Icons.history, size: 48),
+    return AndroidBackToBackground(
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          toolbarHeight: 112,
+          backgroundColor: Colors.red.shade50,
+          surfaceTintColor: Colors.red.shade50,
+          iconTheme: const IconThemeData(size: 48),
+          title: const SessionAppBarTitle(
+            child: Text('Detalhe / Edicao', style: TextStyle(fontSize: 24)),
           ),
-        ],
-      ),
-      body: _isLoadingProductInfo
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _ProductInfoSection(
-                      name: _baseObservation.product.name ?? _baseObservation.product.category,
-                      barcode: _baseObservation.product.barcode,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _storeNameController,
-                      decoration:
-                          const InputDecoration(labelText: 'Estabelecimento'),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Informe o estabelecimento.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _EditableFieldRow(
-                      label: 'Brand',
-                      controller: _brandController,
-                      enabled: state.isBrandEnabled,
-                      sideButtonLabel:
-                          state.canToggleBrandByButton
-                              ? (state.isBrandInToggleEditMode ? 'save' : 'edit')
-                              : null,
-                      onSideButtonPressed:
-                          state.canToggleBrandByButton
-                              ? _onBrandEditOrSave
-                              : null,
-                    ),
-                    const SizedBox(height: 12),
-                    _EditableFieldRow(
-                      label: 'Category',
-                      controller: _categoryController,
-                      enabled: state.isCategoryEnabled,
-                      sideButtonLabel:
-                          state.canToggleCategoryByButton
-                              ? (state.isCategoryInToggleEditMode
-                                  ? 'save'
-                                  : 'edit')
-                              : null,
-                      onSideButtonPressed:
-                          state.canToggleCategoryByButton
-                              ? _onCategoryEditOrSave
-                              : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Preco'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (parsePriceToCents(value ?? '') == null) {
-                          return 'Informe um preco valido.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        if (!state.isAnyFieldInEditMode)
+          actions: [
+            IconButton(
+              tooltip: 'Historico',
+              onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.history),
+              icon: const Icon(Icons.history, size: 48),
+            ),
+            const LogoutActionButton(),
+          ],
+        ),
+        body: _isLoadingProductInfo
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ProductInfoSection(
+                        name: _baseObservation.product.name ??
+                            _baseObservation.product.category,
+                        barcode: _baseObservation.product.barcode,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _storeNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Estabelecimento',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Informe o estabelecimento.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _EditableFieldRow(
+                        label: 'Brand',
+                        controller: _brandController,
+                        enabled: state.isBrandEnabled,
+                        sideButtonLabel: state.canToggleBrandByButton
+                            ? (state.isBrandInToggleEditMode ? 'save' : 'edit')
+                            : null,
+                        onSideButtonPressed: state.canToggleBrandByButton
+                            ? _onBrandEditOrSave
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _EditableFieldRow(
+                        label: 'Category',
+                        controller: _categoryController,
+                        enabled: state.isCategoryEnabled,
+                        sideButtonLabel: state.canToggleCategoryByButton
+                            ? (state.isCategoryInToggleEditMode ? 'save' : 'edit')
+                            : null,
+                        onSideButtonPressed: state.canToggleCategoryByButton
+                            ? _onCategoryEditOrSave
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _priceController,
+                        decoration: const InputDecoration(labelText: 'Preco'),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (parsePriceToCents(value ?? '') == null) {
+                            return 'Informe um preco valido.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          if (!state.isAnyFieldInEditMode)
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _isSaving ? null : _confirm,
+                                child: Text(_isSaving ? 'Salvando...' : 'Confirmar'),
+                              ),
+                            ),
+                          if (!state.isAnyFieldInEditMode)
+                            const SizedBox(width: 12),
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: _isSaving ? null : _confirm,
-                              child: Text(_isSaving ? 'Salvando...' : 'Confirmar'),
+                            child: OutlinedButton(
+                              onPressed: _cancel,
+                              child: const Text('Cancelar'),
                             ),
                           ),
-                        if (!state.isAnyFieldInEditMode) const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _cancel,
-                            child: const Text('Cancelar'),
-                          ),
-                          ),
-                      ],
-                    ),
-                    if (!state.isAnyFieldInEditMode && _baseObservation.id != null)
-                      const SizedBox(height: 10),
-                    if (!state.isAnyFieldInEditMode && _baseObservation.id != null)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _isSaving ? null : _deleteObservation,
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.red.shade50,
-                          ),
-                          child: const Text('Deletar'),
-                        ),
+                        ],
                       ),
-                  ],
+                      if (!state.isAnyFieldInEditMode &&
+                          _baseObservation.id != null)
+                        const SizedBox(height: 10),
+                      if (!state.isAnyFieldInEditMode &&
+                          _baseObservation.id != null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _isSaving ? null : _deleteObservation,
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.red.shade50,
+                            ),
+                            child: const Text('Deletar'),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -537,16 +541,3 @@ class _EditableFieldRow extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

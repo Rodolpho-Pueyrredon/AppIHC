@@ -5,19 +5,23 @@ import 'package:app_ihc/domain/repositories/price_observation_repository.dart';
 import 'package:app_ihc/domain/repositories/product_repository.dart';
 import 'package:app_ihc/domain/repositories/store_repository.dart';
 import 'package:app_ihc/domain/services/sqlite_service_contract.dart';
+import 'package:app_ihc/presentation/state/auth_session.dart';
 
 class PriceObservationRepositoryImpl implements PriceObservationRepository {
   PriceObservationRepositoryImpl({
     required SQLiteServiceContract sqliteService,
     required ProductRepository productRepository,
     required StoreRepository storeRepository,
+    required AuthSession authSession,
   })  : _sqliteService = sqliteService,
         _productRepository = productRepository,
-        _storeRepository = storeRepository;
+        _storeRepository = storeRepository,
+        _authSession = authSession;
 
   final SQLiteServiceContract _sqliteService;
   final ProductRepository _productRepository;
   final StoreRepository _storeRepository;
+  final AuthSession _authSession;
 
   @override
   Future<PriceObservation?> getById(int id) async {
@@ -46,6 +50,11 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
+    final collaboratorId = _authSession.collaboratorId;
+    if (collaboratorId == null) {
+      throw StateError('Collaborator session is required to save observation.');
+    }
+
     final product = await _productRepository.upsertByBarcode(
       observation.product.copyWith(barcode: barcode),
     );
@@ -57,6 +66,7 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       {
         'product_barcode': product.barcode,
         'store_id': store.id,
+        'collaborator_id': collaboratorId,
         'price_cents': observation.priceCents,
         'latitude': observation.latitude,
         'longitude': observation.longitude,
@@ -86,6 +96,11 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
+    final collaboratorId = _authSession.collaboratorId;
+    if (collaboratorId == null) {
+      throw StateError('Collaborator session is required to update observation.');
+    }
+
     final product = await _productRepository.upsertByBarcode(
       observation.product.copyWith(barcode: barcode),
     );
@@ -96,6 +111,7 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       {
         'product_barcode': product.barcode,
         'store_id': store.id,
+        'collaborator_id': collaboratorId,
         'price_cents': observation.priceCents,
         'latitude': observation.latitude,
         'longitude': observation.longitude,

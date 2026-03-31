@@ -35,19 +35,19 @@ class AppDatabase {
     final factory = _databaseFactory();
     final databasesPath = await _getDatabasesPath(factory);
     final dbPath = p.join(databasesPath, _dbFileName);
-    final exists = await _databaseExists(factory, dbPath);
+    // final exists = await _databaseExists(factory, dbPath);
 
-    if (!exists) {
-      await Directory(p.dirname(dbPath)).create(recursive: true);
+    // if (!exists) {
+    await Directory(p.dirname(dbPath)).create(recursive: true);
 
-      final byteData = await rootBundle.load(_assetPath);
-      final bytes = byteData.buffer.asUint8List(
-        byteData.offsetInBytes,
-        byteData.lengthInBytes,
-      );
+    final byteData = await rootBundle.load(_assetPath);
+    final bytes = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
 
-      await File(dbPath).writeAsBytes(bytes, flush: true);
-    }
+    await File(dbPath).writeAsBytes(bytes, flush: true);
+    // }
 
     return _openDatabase(factory, dbPath);
   }
