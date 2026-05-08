@@ -2,28 +2,36 @@ class Store {
   const Store({
     this.id,
     required this.name,
-    this.normalizedName,
+    this.address,
+    this.latitude,
+    this.longitude,
     this.createdAt,
     this.updatedAt,
   });
 
   final int? id;
   final String name;
-  final String? normalizedName;
+  final String? address;
+  final double? latitude;
+  final double? longitude;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   Store copyWith({
     int? id,
     String? name,
-    String? normalizedName,
+    String? address,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return Store(
       id: id ?? this.id,
       name: name ?? this.name,
-      normalizedName: normalizedName ?? this.normalizedName,
+      address: address ?? this.address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

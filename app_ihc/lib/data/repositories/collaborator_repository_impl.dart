@@ -55,12 +55,10 @@ class CollaboratorRepositoryImpl implements CollaboratorRepository {
       return existing;
     }
 
-    final nowIso = DateTime.now().toUtc().toIso8601String();
     final insertedId = await _sqliteService.insert(
       _table,
       {
         'username': normalized,
-        'created_at': nowIso,
       },
     );
 
@@ -68,7 +66,6 @@ class CollaboratorRepositoryImpl implements CollaboratorRepository {
         Collaborator(
           id: insertedId,
           username: normalized,
-          createdAt: DateTime.parse(nowIso),
         );
   }
 
@@ -76,6 +73,7 @@ class CollaboratorRepositoryImpl implements CollaboratorRepository {
     return Collaborator(
       id: row['id'] as int?,
       username: row['username'] as String? ?? '',
+      friendlyName: row['friendly_name'] as String?,
       createdAt: _parseDate(row['created_at']),
     );
   }

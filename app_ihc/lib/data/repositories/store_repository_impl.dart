@@ -1,4 +1,3 @@
-import 'package:app_ihc/core/utils/store_name_normalizer.dart';
 import 'package:app_ihc/domain/models/store.dart';
 import 'package:app_ihc/domain/repositories/store_repository.dart';
 import 'package:app_ihc/domain/services/sqlite_service_contract.dart';
@@ -26,11 +25,16 @@ class StoreRepositoryImpl implements StoreRepository {
   }
 
   @override
-  Future<Store?> findByNormalizedName(String normalizedName) async {
+  Future<Store?> findByName(String name) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
     final rows = await _sqliteService.query(
       _table,
-      where: 'normalized_name = ?',
-      whereArgs: [normalizedName],
+      where: 'name = ?',
+      whereArgs: [normalized],
       limit: 1,
     );
     if (rows.isEmpty) {
@@ -41,15 +45,19 @@ class StoreRepositoryImpl implements StoreRepository {
 
   @override
   Future<Store> upsertByName(String name) async {
-    final normalizedName = normalizeStoreName(name);
+    final normalized = name.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError('Store name is required.');
+    }
+
     final nowIso = DateTime.now().toUtc().toIso8601String();
-    final existing = await findByNormalizedName(normalizedName);
+    final existing = await findByName(normalized);
 
     if (existing != null) {
       await _sqliteService.update(
         _table,
         {
-          'name': name,
+          'name': normalized,
           'updated_at': nowIso,
         },
         where: 'id = ?',
@@ -63,8 +71,10 @@ class StoreRepositoryImpl implements StoreRepository {
     final insertedId = await _sqliteService.insert(
       _table,
       {
-        'name': name,
-        'normalized_name': normalizedName,
+        'name': normalized,
+        'address': null,
+        'latitude': 0,
+        'longitude': 0,
         'created_at': nowIso,
         'updated_at': nowIso,
       },
@@ -74,8 +84,10 @@ class StoreRepositoryImpl implements StoreRepository {
     return inserted ??
         Store(
           id: insertedId,
-          name: name,
-          normalizedName: normalizedName,
+          name: normalized,
+          address: null,
+          latitude: 0,
+          longitude: 0,
           createdAt: DateTime.parse(nowIso),
           updatedAt: DateTime.parse(nowIso),
         );
@@ -85,7 +97,9 @@ class StoreRepositoryImpl implements StoreRepository {
     return Store(
       id: row['id'] as int?,
       name: row['name'] as String? ?? '',
-      normalizedName: row['normalized_name'] as String?,
+      address: row['address'] as String?,
+      latitude: (row['latitude'] as num?)?.toDouble(),
+      longitude: (row['longitude'] as num?)?.toDouble(),
       createdAt: _parseDate(row['created_at']),
       updatedAt: _parseDate(row['updated_at']),
     );

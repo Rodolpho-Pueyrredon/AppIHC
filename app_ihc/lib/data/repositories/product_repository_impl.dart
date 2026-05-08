@@ -38,6 +38,7 @@ class ProductRepositoryImpl implements ProductRepository {
       await _sqliteService.update(
         _table,
         {
+          'name': product.name,
           'category': product.category,
           'brand': product.brand,
           'updated_at': nowIso,
@@ -59,6 +60,7 @@ class ProductRepositoryImpl implements ProductRepository {
       _table,
       {
         'barcode': normalizedBarcode,
+        'name': product.name,
         'category': product.category,
         'brand': product.brand,
         'created_at': nowIso,
@@ -75,12 +77,11 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   Product _fromRow(Map<String, Object?> row) {
-    final category = row['category'] as String?;
     return Product(
       barcode: row['barcode'] as String? ?? '',
-      name: category,
+      name: row['name'] as String?,
       brand: row['brand'] as String?,
-      category: category,
+      category: row['category'] as String?,
       createdAt: _parseDate(row['created_at']),
       updatedAt: _parseDate(row['updated_at']),
     );
