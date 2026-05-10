@@ -8,10 +8,7 @@ class AuthSession extends ChangeNotifier {
   int? get collaboratorId => _collaboratorId;
   bool get isLoggedIn => (_username ?? '').trim().isNotEmpty;
 
-  void login({
-    required String username,
-    required int collaboratorId,
-  }) {
+  void login({required String username, int? collaboratorId}) {
     _username = username.trim();
     _collaboratorId = collaboratorId;
     notifyListeners();

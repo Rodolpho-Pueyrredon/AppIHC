@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class SessionAppBarTitle extends StatelessWidget {
-  const SessionAppBarTitle({
-    super.key,
-    required this.child,
-  });
+  const SessionAppBarTitle({super.key, required this.child});
 
   final Widget child;
 
@@ -38,13 +35,31 @@ class LogoutActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: 'Sair',
-      onPressed: () {
+      onPressed: () async {
+        final navigator = Navigator.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+
+        try {
+          await ServiceLocator.instance.sessionRepository.clearSession();
+        } catch (_) {
+          if (!messenger.mounted) {
+            return;
+          }
+
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Nao foi possivel encerrar a sessao.'),
+            ),
+          );
+          return;
+        }
+
         ServiceLocator.instance.authSession.logout();
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          AppRoutes.login,
-          (_) => false,
-        );
+        if (!navigator.mounted) {
+          return;
+        }
+
+        navigator.pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
       },
       icon: const Icon(Icons.logout, size: 48),
     );

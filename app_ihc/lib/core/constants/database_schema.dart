@@ -4,12 +4,14 @@ abstract final class DatabaseSchema {
 
   static const createProductsTable = '''
 CREATE TABLE products (
-    barcode TEXT PRIMARY KEY,
+    barcode TEXT NOT NULL,
+    work_id TEXT NOT NULL,
     category TEXT,
     brand TEXT,
-    name TEXT,
+    product_name TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (barcode, work_id)
 );
 ''';
 
@@ -38,6 +40,13 @@ CREATE TABLE collaborator (
 CREATE INDEX idx_collaborator_username ON collaborator(username);
 ''';
 
+  static const createSessionTable = '''
+CREATE TABLE IF NOT EXISTS sessao (
+    user TEXT NOT NULL,
+    work_id TEXT NOT NULL
+);
+''';
+
   static const createPriceObservationsTable = '''
 CREATE TABLE price_observations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,8 +56,8 @@ CREATE TABLE price_observations (
     observed_at TEXT NOT NULL,
     notes TEXT,
     created_at TEXT NOT NULL,
-    collaborator_id INTEGER REFERENCES collaborator(id),
-    FOREIGN KEY (product_barcode) REFERENCES products(barcode),
+    work_id TEXT NOT NULL,
+    FOREIGN KEY (product_barcode, work_id) REFERENCES products(barcode, work_id),
     FOREIGN KEY (store_id) REFERENCES stores(id)
 );
 ''';
@@ -65,7 +74,7 @@ CREATE INDEX idx_price_obs_store_id ON price_observations(store_id);
 CREATE INDEX idx_price_obs_observed_at ON price_observations(observed_at);
 ''';
 
-  static const createPriceObsCollaboratorIdIndex = '''
-CREATE INDEX idx_price_obs_collaborator_id ON price_observations(collaborator_id);
+  static const createPriceObsWorkIdIndex = '''
+CREATE INDEX idx_price_obs_work_id ON price_observations(work_id);
 ''';
 }

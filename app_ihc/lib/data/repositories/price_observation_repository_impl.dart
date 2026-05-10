@@ -13,10 +13,10 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
     required ProductRepository productRepository,
     required StoreRepository storeRepository,
     required AuthSession authSession,
-  })  : _sqliteService = sqliteService,
-        _productRepository = productRepository,
-        _storeRepository = storeRepository,
-        _authSession = authSession;
+  }) : _sqliteService = sqliteService,
+       _productRepository = productRepository,
+       _storeRepository = storeRepository,
+       _authSession = authSession;
 
   final SQLiteServiceContract _sqliteService;
   final ProductRepository _productRepository;
@@ -50,29 +50,23 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
-    final collaboratorId = _authSession.collaboratorId;
-    if (collaboratorId == null) {
-      throw StateError('Collaborator session is required to save observation.');
-    }
+    final workId = _currentWorkId();
 
     final product = await _productRepository.upsertByBarcode(
-      observation.product.copyWith(barcode: barcode),
+      observation.product.copyWith(barcode: barcode, workId: workId),
     );
     final store = await _storeRepository.upsertByName(observation.store.name);
 
     final nowIso = DateTime.now().toUtc().toIso8601String();
-    final insertedId = await _sqliteService.insert(
-      'price_observations',
-      {
-        'product_barcode': product.barcode,
-        'store_id': store.id,
-        'collaborator_id': collaboratorId,
-        'price_cents': observation.priceCents,
-        'observed_at': observation.observedAt.toUtc().toIso8601String(),
-        'notes': observation.note,
-        'created_at': nowIso,
-      },
-    );
+    final insertedId = await _sqliteService.insert('price_observations', {
+      'product_barcode': product.barcode,
+      'store_id': store.id,
+      'price_cents': observation.priceCents,
+      'observed_at': observation.observedAt.toUtc().toIso8601String(),
+      'notes': observation.note,
+      'created_at': nowIso,
+      'work_id': workId,
+    });
 
     return (await getById(insertedId)) ??
         observation.copyWith(
@@ -94,13 +88,10 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       throw ArgumentError('Product barcode is required for upsert.');
     }
 
-    final collaboratorId = _authSession.collaboratorId;
-    if (collaboratorId == null) {
-      throw StateError('Collaborator session is required to update observation.');
-    }
+    final workId = _currentWorkId();
 
     final product = await _productRepository.upsertByBarcode(
-      observation.product.copyWith(barcode: barcode),
+      observation.product.copyWith(barcode: barcode, workId: workId),
     );
     final store = await _storeRepository.upsertByName(observation.store.name);
 
@@ -109,10 +100,10 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       {
         'product_barcode': product.barcode,
         'store_id': store.id,
-        'collaborator_id': collaboratorId,
         'price_cents': observation.priceCents,
         'observed_at': observation.observedAt.toUtc().toIso8601String(),
         'notes': observation.note,
+        'work_id': workId,
       },
       where: 'id = ?',
       whereArgs: [observation.id],
@@ -128,10 +119,7 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
     );
   }
 
-  String _baseSelectQuery({
-    String where = '',
-    String orderBy = '',
-  }) {
+  String _baseSelectQuery({String where = '', String orderBy = ''}) {
     return '''
 SELECT
   po.id AS po_id,
@@ -139,9 +127,10 @@ SELECT
   po.observed_at AS po_observed_at,
   po.notes AS po_notes,
   po.created_at AS po_created_at,
-  po.collaborator_id AS po_collaborator_id,
+  po.work_id AS po_work_id,
   p.barcode AS p_barcode,
-  p.name AS p_name,
+  p.work_id AS p_work_id,
+  p.product_name AS p_name,
   p.category AS p_category,
   p.brand AS p_brand,
   p.created_at AS p_created_at,
@@ -154,7 +143,7 @@ SELECT
   s.created_at AS s_created_at,
   s.updated_at AS s_updated_at
 FROM price_observations po
-JOIN products p ON p.barcode = po.product_barcode
+JOIN products p ON p.barcode = po.product_barcode AND p.work_id = po.work_id
 JOIN stores s ON s.id = po.store_id
 $where
 $orderBy
@@ -166,6 +155,7 @@ $orderBy
       id: row['po_id'] as int?,
       product: Product(
         barcode: row['p_barcode'] as String? ?? '',
+        workId: row['p_work_id'] as String? ?? row['po_work_id'] as String?,
         name: row['p_name'] as String?,
         brand: row['p_brand'] as String?,
         category: row['p_category'] as String?,
@@ -188,6 +178,14 @@ $orderBy
       note: row['po_notes'] as String?,
       createdAt: _parseDate(row['po_created_at']),
     );
+  }
+
+  String _currentWorkId() {
+    final workId = _authSession.username?.trim();
+    if (workId == null || workId.isEmpty) {
+      throw StateError('Work session is required to save observation.');
+    }
+    return workId;
   }
 
   DateTime? _parseDate(Object? value) {

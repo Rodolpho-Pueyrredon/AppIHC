@@ -33,12 +33,19 @@ class _FakeLoginScreenState extends State<FakeLoginScreen> {
     });
 
     try {
-      final collaborator = await ServiceLocator.instance.collaboratorRepository
-          .findOrCreateByUsername(_usernameController.text);
-      ServiceLocator.instance.authSession.login(
-        username: collaborator.username,
-        collaboratorId: collaborator.id!,
-      );
+      final username = _usernameController.text.trim();
+      final isValidLogin = await ServiceLocator
+          .instance
+          .collaboratorLoginService
+          .login(username: username, password: _passwordController.text);
+      if (!isValidLogin) {
+        throw StateError('Invalid login.');
+      }
+
+      final works = await ServiceLocator.instance.collaboratorWorksService
+          .getWorksForCollaborator(username);
+      await ServiceLocator.instance.sessionRepository.saveSessionWorks(works);
+      ServiceLocator.instance.authSession.login(username: username);
 
       if (!mounted) {
         return;
