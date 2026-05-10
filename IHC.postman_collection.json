@@ -1,0 +1,103 @@
+{
+  "info": {
+    "_postman_id": "be47f840-2069-46f2-9167-b7db53009d64",
+    "name": "IHC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "2868767",
+    "_collection_link": "https://go.postman.co/collection/2868767-be47f840-2069-46f2-9167-b7db53009d64?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "https://gohjpcxekvkgahiqncjw.supabase.co/rest/v1/works_full",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "sb_publishable_sCNqy-V9zhoqlVlTL3EreA_22UEmJXy",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "sb_publishable_sCNqy-V9zhoqlVlTL3EreA_22UEmJXy",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://gohjpcxekvkgahiqncjw.supabase.co/rest/v1/works_full?collaborator_username=eq.miao_yin@empresa.com",
+          "protocol": "https",
+          "host": [
+            "gohjpcxekvkgahiqncjw",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "rest",
+            "v1",
+            "works_full"
+          ],
+          "query": [
+            {
+              "key": "collaborator_username",
+              "value": "eq.miao_yin@empresa.com"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "https://gohjpcxekvkgahiqncjw.supabase.co/rest/v1/rpc/login_collaborator",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "sb_publishable_sCNqy-V9zhoqlVlTL3EreA_22UEmJXy",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "sb_publishable_sCNqy-V9zhoqlVlTL3EreA_22UEmJXy",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"p_username\": \"miao_yin@empresa.com\",\r\n  \"p_password\": \"outrasenha\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://gohjpcxekvkgahiqncjw.supabase.co/rest/v1/rpc/login_collaborator",
+          "protocol": "https",
+          "host": [
+            "gohjpcxekvkgahiqncjw",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "rest",
+            "v1",
+            "rpc",
+            "login_collaborator"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
