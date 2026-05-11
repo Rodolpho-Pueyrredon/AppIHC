@@ -41,12 +41,17 @@ dependencies:
   path_provider: ^2.1.5
   # Barcode / QR scanner.
   mobile_scanner: ^5.2.3
+  weebi_barcode_scanner: ^1.7.3
   # Geolocation.
   geolocator: ^13.0.2
   # Simple state management.
   provider: ^6.1.5+1
   # Text normalization utility.
   diacritic: ^0.1.6
+
+dependency_overrides:
+  weebi_barcode_scanner:
+    path: packages/weebi_barcode_scanner
 
 dev_dependencies:
   flutter_test:

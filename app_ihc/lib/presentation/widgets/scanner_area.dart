@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:weebi_barcode_scanner/weebi_barcode_scanner.dart' as weebi;
 
 class ScannerArea extends StatefulWidget {
   const ScannerArea({
@@ -20,8 +21,7 @@ class ScannerArea extends StatefulWidget {
   State<ScannerArea> createState() => _ScannerAreaState();
 }
 
-class _ScannerAreaState extends State<ScannerArea>
-    with WidgetsBindingObserver {
+class _ScannerAreaState extends State<ScannerArea> with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
     autoStart: false,
     detectionSpeed: DetectionSpeed.noDuplicates,
@@ -35,18 +35,28 @@ class _ScannerAreaState extends State<ScannerArea>
   String? _cameraError;
   bool _reportedBuilderError = false;
 
-  bool get _supportsRealScanner {
+  bool get _supportsMobileScanner {
     if (kIsWeb) {
       return false;
     }
     return Platform.isAndroid || Platform.isIOS;
   }
 
+  bool get _supportsWindowsScanner {
+    if (kIsWeb) {
+      return false;
+    }
+    return Platform.isWindows;
+  }
+
+  bool get _supportsRealScanner =>
+      _supportsMobileScanner || _supportsWindowsScanner;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_supportsRealScanner) {
+    if (_supportsMobileScanner) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _startCamera();
       });
@@ -62,7 +72,7 @@ class _ScannerAreaState extends State<ScannerArea>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_supportsRealScanner) {
+    if (!_supportsMobileScanner) {
       return;
     }
 
@@ -146,8 +156,9 @@ class _ScannerAreaState extends State<ScannerArea>
       return;
     }
 
-    final rawValue =
-        capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue : null;
+    final rawValue = capture.barcodes.isNotEmpty
+        ? capture.barcodes.first.rawValue
+        : null;
     if (rawValue == null || rawValue.trim().isEmpty) {
       widget.onEmptyCode?.call();
       return;
@@ -156,6 +167,21 @@ class _ScannerAreaState extends State<ScannerArea>
     _hasDetected = true;
     await _stopCamera();
     widget.onCodeDetected(rawValue.trim());
+  }
+
+  void _onWindowsDetect(weebi.BarcodeResult result) {
+    if (_hasDetected) {
+      return;
+    }
+
+    final rawValue = result.text.trim();
+    if (rawValue.isEmpty) {
+      widget.onEmptyCode?.call();
+      return;
+    }
+
+    _hasDetected = true;
+    widget.onCodeDetected(rawValue);
   }
 
   void _notifyScanError(String message) {
@@ -179,7 +205,9 @@ class _ScannerAreaState extends State<ScannerArea>
               const SizedBox(
                 height: 260,
                 child: Center(
-                  child: Text('Scanner real disponivel no celular (Android/iOS).'),
+                  child: Text(
+                    'Scanner real disponivel no celular (Android/iOS).',
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -193,6 +221,13 @@ class _ScannerAreaState extends State<ScannerArea>
       );
     }
 
+    if (_supportsWindowsScanner) {
+      return _WindowsScannerArea(
+        onCodeDetected: _onWindowsDetect,
+        onScanError: widget.onScanError,
+      );
+    }
+
     if (_cameraError != null) {
       return Card(
         child: Padding(
@@ -202,9 +237,7 @@ class _ScannerAreaState extends State<ScannerArea>
             children: [
               const SizedBox(
                 height: 200,
-                child: Center(
-                  child: Text('Nao foi possivel abrir a camera.'),
-                ),
+                child: Center(child: Text('Nao foi possivel abrir a camera.')),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
@@ -238,9 +271,7 @@ class _ScannerAreaState extends State<ScannerArea>
                   _reportedBuilderError = true;
                   _notifyScanError(error.toString());
                 }
-                return Center(
-                  child: Text('Falha na camera: $error'),
-                );
+                return Center(child: Text('Falha na camera: $error'));
               },
             ),
           ),
@@ -248,9 +279,7 @@ class _ScannerAreaState extends State<ScannerArea>
             const Positioned.fill(
               child: ColoredBox(
                 color: Colors.black12,
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
           const Positioned.fill(child: _ScannerTargetOverlay()),
@@ -264,6 +293,34 @@ class _ScannerAreaState extends State<ScannerArea>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WindowsScannerArea extends StatelessWidget {
+  const _WindowsScannerArea({required this.onCodeDetected, this.onScanError});
+
+  final ValueChanged<weebi.BarcodeResult> onCodeDetected;
+  final ValueChanged<String>? onScanError;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 420,
+        width: double.infinity,
+        child: weebi.SimpleBarcodeScanner(
+          config: const weebi.ScannerConfig.pointOfSale(
+            enableProductLookup: false,
+            showStatusOverlay: false,
+            timeout: Duration(seconds: 60),
+          ),
+          onBarcodeDetected: onCodeDetected,
+          onError: onScanError,
+          loadingWidget: const Center(child: CircularProgressIndicator()),
+        ),
       ),
     );
   }

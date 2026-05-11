@@ -6,6 +6,8 @@ import 'package:app_ihc/data/repositories/session_repository_impl.dart';
 import 'package:app_ihc/data/repositories/store_repository_impl.dart';
 import 'package:app_ihc/data/services/http_json_client.dart';
 import 'package:app_ihc/data/services/product_lookup_service.dart';
+import 'package:app_ihc/data/services/supabase_session_products_sync_service.dart';
+import 'package:app_ihc/data/services/supabase_session_work_groups_service.dart';
 import 'package:app_ihc/data/services/sqlite_service.dart';
 import 'package:app_ihc/data/services/supabase_collaborator_login_service.dart';
 import 'package:app_ihc/data/services/supabase_collaborator_works_service.dart';
@@ -21,6 +23,8 @@ import 'package:app_ihc/domain/services/collaborator_login_service_contract.dart
 import 'package:app_ihc/domain/services/collaborator_works_service_contract.dart';
 import 'package:app_ihc/domain/services/product_lookup_service_contract.dart';
 import 'package:app_ihc/domain/services/scanner_service_contract.dart';
+import 'package:app_ihc/domain/services/session_products_sync_service_contract.dart';
+import 'package:app_ihc/domain/services/session_work_groups_service_contract.dart';
 import 'package:app_ihc/domain/services/sqlite_service_contract.dart';
 import 'package:app_ihc/domain/usecases/lookup_product_by_barcode_use_case.dart';
 import 'package:app_ihc/presentation/state/auth_session.dart';
@@ -37,6 +41,8 @@ class ServiceLocator {
   late final HttpJsonClient httpJsonClient;
   late final CollaboratorLoginServiceContract collaboratorLoginService;
   late final CollaboratorWorksServiceContract collaboratorWorksService;
+  late final SessionProductsSyncServiceContract sessionProductsSyncService;
+  late final SessionWorkGroupsServiceContract sessionWorkGroupsService;
   late final ProductLookupServiceContract productLookupService;
   late final LookupProductByBarcodeUseCase lookupProductByBarcodeUseCase;
   late final CollaboratorRepository collaboratorRepository;
@@ -59,6 +65,16 @@ class ServiceLocator {
     collaboratorWorksService = SupabaseCollaboratorWorksService(
       config: SupabaseApiConfig.fromEnvironment(),
       httpJsonClient: httpJsonClient,
+    );
+    sessionProductsSyncService = SupabaseSessionProductsSyncService(
+      config: SupabaseApiConfig.fromEnvironment(),
+      httpJsonClient: httpJsonClient,
+      sqliteService: sqliteService,
+    );
+    sessionWorkGroupsService = SupabaseSessionWorkGroupsService(
+      config: SupabaseApiConfig.fromEnvironment(),
+      httpJsonClient: httpJsonClient,
+      sqliteService: sqliteService,
     );
     collaboratorRepository = CollaboratorRepositoryImpl(
       sqliteService: sqliteService,

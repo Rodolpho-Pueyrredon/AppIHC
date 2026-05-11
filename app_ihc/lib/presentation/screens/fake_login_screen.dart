@@ -45,13 +45,15 @@ class _FakeLoginScreenState extends State<FakeLoginScreen> {
       final works = await ServiceLocator.instance.collaboratorWorksService
           .getWorksForCollaborator(username);
       await ServiceLocator.instance.sessionRepository.saveSessionWorks(works);
+      await ServiceLocator.instance.sessionProductsSyncService
+          .syncProductsFromSession();
       ServiceLocator.instance.authSession.login(username: username);
 
       if (!mounted) {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, AppRoutes.scanner);
+      Navigator.pushReplacementNamed(context, AppRoutes.products);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

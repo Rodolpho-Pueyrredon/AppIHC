@@ -12,6 +12,13 @@ class _FakeProductRepository implements ProductRepository {
   }
 
   @override
+  Future<List<Product>> findByWorkId(String workId) async {
+    return _byBarcode.values
+        .where((product) => product.workId == workId)
+        .toList(growable: false);
+  }
+
+  @override
   Future<Product> upsertByBarcode(Product product) async {
     _byBarcode[product.barcode] = product;
     return product;
@@ -25,9 +32,7 @@ void main() {
       const Product(barcode: '123', name: 'Local Product', brand: 'Brand X'),
     );
 
-    final service = ProductLookupService(
-      productRepository: repository,
-    );
+    final service = ProductLookupService(productRepository: repository);
 
     final result = await service.lookupByBarcode('123');
 
@@ -35,25 +40,24 @@ void main() {
     expect(result.brand, 'Brand X');
   });
 
-  test('returns empty structure for manual fill when product is missing', () async {
-    final repository = _FakeProductRepository();
-    final service = ProductLookupService(
-      productRepository: repository,
-    );
+  test(
+    'returns empty structure for manual fill when product is missing',
+    () async {
+      final repository = _FakeProductRepository();
+      final service = ProductLookupService(productRepository: repository);
 
-    final result = await service.lookupByBarcode('777');
+      final result = await service.lookupByBarcode('777');
 
-    expect(result.barcode, '777');
-    expect(result.name, isNull);
-    expect(result.brand, isNull);
-    expect(result.category, isNull);
-  });
+      expect(result.barcode, '777');
+      expect(result.name, isNull);
+      expect(result.brand, isNull);
+      expect(result.category, isNull);
+    },
+  );
 
   test('returns empty product for blank barcode input', () async {
     final repository = _FakeProductRepository();
-    final service = ProductLookupService(
-      productRepository: repository,
-    );
+    final service = ProductLookupService(productRepository: repository);
 
     final result = await service.lookupByBarcode('   ');
 

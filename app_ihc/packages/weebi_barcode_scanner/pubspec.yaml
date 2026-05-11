@@ -1,0 +1,54 @@
+name: weebi_barcode_scanner
+description: "Self-contained barcode scanner with real-time detection overlay. Features embedded YOLO detection, cross-platform support (Windows/macOS), point-of-sale optimizations, and OpenFoodFacts integration. No manual setup required."
+version: 1.7.3
+homepage: https://www.weebi.com
+repository: https://github.com/weebi-com/weebi_barcode_scanner_package
+issue_tracker: https://github.com/weebi-com/weebi_barcode_scanner_package/issues
+
+environment:
+  sdk: ^3.0.0
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Camera support for different platforms
+  camera: ^0.11.1
+  camera_windows: ^0.2.6+2
+  camera_macos: ^0.0.9
+
+  # File handling and path utilities
+  path: ^1.8.0
+  path_provider: ^2.0.15
+  
+  # FFI for native library integration (from dart_barcode)
+  ffi: ^2.0.1
+  
+  # Image processing utilities (from dart_barcode)
+  image: ^4.0.17
+  
+  # OpenFoodFacts integration via separate package
+  weebi_openfoodfacts_service: ^1.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  # Plugin configuration for platform-specific implementations
+  plugin:
+    platforms:
+      windows:
+        pluginClass: WeebiBarcodePlugin
+      macos:
+        pluginClass: WeebiBarcodePlugin
+
+  # Assets are no longer bundled - Yolo model is downloaded automatically
+  # Native libraries must be provided by consuming applications
+  # See documentation for setup instructions

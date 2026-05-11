@@ -3,7 +3,7 @@ abstract final class DatabaseSchema {
   static const databaseVersion = 1;
 
   static const createProductsTable = '''
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     barcode TEXT NOT NULL,
     work_id TEXT NOT NULL,
     category TEXT,

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class AppDatabase {
@@ -95,22 +94,11 @@ class AppDatabase {
     return getDatabasesPath();
   }
 
-  static Future<bool> _databaseExists(DatabaseFactory factory, String path) {
-    if (factory == databaseFactoryFfi) {
-      return databaseFactoryFfi.databaseExists(path);
-    }
-
-    return databaseExists(path);
-  }
-
   static Future<Database> _openDatabase(DatabaseFactory factory, String path) {
     if (factory == databaseFactoryFfi) {
       return databaseFactoryFfi.openDatabase(path);
     }
 
-    return openDatabase(
-      path,
-      readOnly: false,
-    );
+    return openDatabase(path, readOnly: false);
   }
 }

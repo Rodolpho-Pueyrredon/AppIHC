@@ -3,7 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  camera_windows
   geolocator_windows
+  weebi_barcode_scanner
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

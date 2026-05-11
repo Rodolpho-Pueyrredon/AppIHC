@@ -25,6 +25,23 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<List<Product>> findByWorkId(String workId) async {
+    final normalizedWorkId = workId.trim();
+    if (normalizedWorkId.isEmpty) {
+      return const [];
+    }
+
+    final rows = await _sqliteService.query(
+      _table,
+      where: 'work_id = ?',
+      whereArgs: [normalizedWorkId],
+      orderBy: 'product_name COLLATE NOCASE ASC, brand COLLATE NOCASE ASC',
+    );
+
+    return rows.map(_fromRow).toList(growable: false);
+  }
+
+  @override
   Future<Product> upsertByBarcode(Product product) async {
     final normalizedBarcode = product.barcode.trim();
     if (normalizedBarcode.isEmpty) {

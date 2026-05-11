@@ -3,14 +3,10 @@ import 'package:app_ihc/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('App starts at scanner screen', (tester) async {
+  testWidgets('App starts at login screen', (tester) async {
     ServiceLocator.instance.setup();
     await tester.pumpWidget(const MyApp());
 
-    expect(find.text('Scanner'), findsOneWidget);
-    expect(
-      find.text('Scanner real disponivel no celular (Android/iOS).'),
-      findsOneWidget,
-    );
+    expect(find.text('Login'), findsOneWidget);
   });
 }

@@ -44,6 +44,23 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
   }
 
   @override
+  Future<List<PriceObservation>> getObservationsByWorkId(String workId) async {
+    final normalizedWorkId = workId.trim();
+    if (normalizedWorkId.isEmpty) {
+      return const [];
+    }
+
+    final rows = await _sqliteService.rawQuery(
+      _baseSelectQuery(
+        where: 'WHERE po.work_id = ?',
+        orderBy: 'ORDER BY po.observed_at DESC',
+      ),
+      [normalizedWorkId],
+    );
+    return rows.map(_fromJoinedRow).toList();
+  }
+
+  @override
   Future<PriceObservation> saveObservation(PriceObservation observation) async {
     final barcode = observation.product.barcode.trim();
     if (barcode.isEmpty) {
@@ -56,8 +73,36 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       observation.product.copyWith(barcode: barcode, workId: workId),
     );
     final store = await _storeRepository.upsertByName(observation.store.name);
+    final existingObservation = await _getByBarcodeAndWorkId(
+      barcode: product.barcode,
+      workId: workId,
+    );
 
     final nowIso = DateTime.now().toUtc().toIso8601String();
+    if (existingObservation != null) {
+      await _sqliteService.update(
+        'price_observations',
+        {
+          'store_id': store.id,
+          'price_cents': observation.priceCents,
+          'observed_at': observation.observedAt.toUtc().toIso8601String(),
+          'notes': observation.note,
+          'work_id': workId,
+        },
+        where: 'id = ?',
+        whereArgs: [existingObservation.id],
+      );
+
+      return (await getById(existingObservation.id!)) ??
+          existingObservation.copyWith(
+            product: product,
+            store: store,
+            priceCents: observation.priceCents,
+            observedAt: observation.observedAt,
+            note: observation.note,
+          );
+    }
+
     final insertedId = await _sqliteService.insert('price_observations', {
       'product_barcode': product.barcode,
       'store_id': store.id,
@@ -108,6 +153,23 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       where: 'id = ?',
       whereArgs: [observation.id],
     );
+  }
+
+  Future<PriceObservation?> _getByBarcodeAndWorkId({
+    required String barcode,
+    required String workId,
+  }) async {
+    final rows = await _sqliteService.rawQuery(
+      _baseSelectQuery(
+        where: 'WHERE po.product_barcode = ? AND po.work_id = ?',
+        orderBy: 'ORDER BY po.observed_at DESC LIMIT 1',
+      ),
+      [barcode, workId],
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _fromJoinedRow(rows.first);
   }
 
   @override
@@ -181,7 +243,7 @@ $orderBy
   }
 
   String _currentWorkId() {
-    final workId = _authSession.username?.trim();
+    final workId = _authSession.workGroupId?.trim();
     if (workId == null || workId.isEmpty) {
       throw StateError('Work session is required to save observation.');
     }
