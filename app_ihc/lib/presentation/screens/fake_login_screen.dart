@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:app_ihc/core/constants/app_routes.dart';
 import 'package:app_ihc/core/di/service_locator.dart';
 import 'package:app_ihc/presentation/widgets/android_back_to_background.dart';
@@ -39,7 +42,13 @@ class _FakeLoginScreenState extends State<FakeLoginScreen> {
           .collaboratorLoginService
           .login(username: username, password: _passwordController.text);
       if (!isValidLogin) {
-        throw StateError('Invalid login.');
+        _showLoginError('usuário ou senha inválidos');
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
+        return;
       }
 
       final works = await ServiceLocator.instance.collaboratorWorksService
@@ -54,16 +63,12 @@ class _FakeLoginScreenState extends State<FakeLoginScreen> {
       }
 
       Navigator.pushReplacementNamed(context, AppRoutes.products);
+    } on SocketException {
+      _showLoginError('sem conexão com internet');
+    } on TimeoutException {
+      _showLoginError('sem conexão com internet');
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nao foi possivel iniciar a sessao.')),
-        );
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
-      return;
+      _showLoginError('Nao foi possivel iniciar a sessao.');
     }
 
     if (mounted) {
@@ -71,6 +76,16 @@ class _FakeLoginScreenState extends State<FakeLoginScreen> {
         _isSubmitting = false;
       });
     }
+  }
+
+  void _showLoginError(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

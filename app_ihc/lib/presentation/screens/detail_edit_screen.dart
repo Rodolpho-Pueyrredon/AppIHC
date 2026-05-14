@@ -423,13 +423,13 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
               surfaceTintColor: Colors.red.shade50,
               iconTheme: const IconThemeData(size: 48),
               title: const SessionAppBarTitle(
-                child: Text('Detalhe / Edicao', style: TextStyle(fontSize: 24)),
+                child: Text('Detalhe', style: TextStyle(fontSize: 24)),
               ),
               actions: [
-                TextButton.icon(
+                IconButton(
+                  tooltip: 'Scanner',
                   onPressed: _goToScanner,
                   icon: const Icon(Icons.qr_code_scanner, size: 48),
-                  label: const Text('Ler', style: TextStyle(fontSize: 24)),
                 ),
                 IconButton(
                   tooltip: 'Historico',

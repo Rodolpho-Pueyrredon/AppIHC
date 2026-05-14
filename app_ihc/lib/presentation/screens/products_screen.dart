@@ -177,7 +177,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Text('Tarefas', style: TextStyle(fontSize: 24)),
           ),
           actions: [
-            const LogoutActionButton(),
             _isExporting
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
@@ -195,6 +194,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         : _exportCollectedObservations,
                     icon: const Icon(Icons.file_upload, size: 48),
                   ),
+            const LogoutActionButton(),
           ],
         ),
         body: _isLoading
