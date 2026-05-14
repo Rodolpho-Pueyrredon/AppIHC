@@ -21,15 +21,15 @@ class DartHttpJsonClient implements HttpJsonClient {
     final request = await _client.getUrl(uri);
     headers?.forEach(request.headers.add);
     final response = await request.close();
+    final body = await utf8.decodeStream(response);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(
-        'GET failed with status ${response.statusCode}',
+        _errorMessage('GET', response.statusCode, body),
         uri: uri,
       );
     }
 
-    final body = await utf8.decodeStream(response);
     if (body.trim().isEmpty) {
       return null;
     }
@@ -52,19 +52,28 @@ class DartHttpJsonClient implements HttpJsonClient {
     }
 
     final response = await request.close();
+    final responseBody = await utf8.decodeStream(response);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(
-        'POST failed with status ${response.statusCode}',
+        _errorMessage('POST', response.statusCode, responseBody),
         uri: uri,
       );
     }
 
-    final responseBody = await utf8.decodeStream(response);
     if (responseBody.trim().isEmpty) {
       return null;
     }
 
     return jsonDecode(responseBody);
+  }
+
+  String _errorMessage(String method, int statusCode, String responseBody) {
+    final body = responseBody.trim();
+    if (body.isEmpty) {
+      return '$method failed with status $statusCode';
+    }
+
+    return '$method failed with status $statusCode: $body';
   }
 }

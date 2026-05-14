@@ -43,7 +43,9 @@ CREATE INDEX idx_collaborator_username ON collaborator(username);
   static const createSessionTable = '''
 CREATE TABLE IF NOT EXISTS sessao (
     user TEXT NOT NULL,
-    work_id TEXT NOT NULL
+    work_id TEXT NOT NULL,
+    store_name TEXT,
+    store_address TEXT
 );
 ''';
 
@@ -54,7 +56,6 @@ CREATE TABLE price_observations (
     store_id INTEGER NOT NULL,
     price_cents INTEGER NOT NULL,
     observed_at TEXT NOT NULL,
-    notes TEXT,
     created_at TEXT NOT NULL,
     work_id TEXT NOT NULL,
     FOREIGN KEY (product_barcode, work_id) REFERENCES products(barcode, work_id),

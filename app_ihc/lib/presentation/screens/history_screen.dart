@@ -304,7 +304,7 @@ class _CollectionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = Theme.of(
+    final baseStyle = Theme.of(
       context,
     ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold);
 
@@ -314,12 +314,12 @@ class _CollectionSummary extends StatelessWidget {
       children: [
         Text(
           'Produtos coletados: $collectedCount',
-          style: textStyle,
+          style: baseStyle?.copyWith(color: Colors.green.shade700),
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           'Ainda a coletar: $pendingCount',
-          style: textStyle,
+          style: baseStyle?.copyWith(color: Colors.red.shade700),
           overflow: TextOverflow.ellipsis,
         ),
       ],

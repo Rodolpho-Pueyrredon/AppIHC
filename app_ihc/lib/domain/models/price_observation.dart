@@ -10,7 +10,6 @@ class PriceObservation {
     required this.latitude,
     required this.longitude,
     required this.observedAt,
-    this.note,
     this.createdAt,
   });
 
@@ -21,7 +20,6 @@ class PriceObservation {
   final double latitude;
   final double longitude;
   final DateTime observedAt;
-  final String? note;
   final DateTime? createdAt;
 
   double get price => priceCents / 100.0;
@@ -34,7 +32,6 @@ class PriceObservation {
     double? latitude,
     double? longitude,
     DateTime? observedAt,
-    String? note,
     DateTime? createdAt,
   }) {
     return PriceObservation(
@@ -45,7 +42,6 @@ class PriceObservation {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       observedAt: observedAt ?? this.observedAt,
-      note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
     );
   }

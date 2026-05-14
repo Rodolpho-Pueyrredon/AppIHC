@@ -86,7 +86,6 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
           'store_id': store.id,
           'price_cents': observation.priceCents,
           'observed_at': observation.observedAt.toUtc().toIso8601String(),
-          'notes': observation.note,
           'work_id': workId,
         },
         where: 'id = ?',
@@ -99,7 +98,6 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
             store: store,
             priceCents: observation.priceCents,
             observedAt: observation.observedAt,
-            note: observation.note,
           );
     }
 
@@ -108,7 +106,6 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
       'store_id': store.id,
       'price_cents': observation.priceCents,
       'observed_at': observation.observedAt.toUtc().toIso8601String(),
-      'notes': observation.note,
       'created_at': nowIso,
       'work_id': workId,
     });
@@ -147,7 +144,6 @@ class PriceObservationRepositoryImpl implements PriceObservationRepository {
         'store_id': store.id,
         'price_cents': observation.priceCents,
         'observed_at': observation.observedAt.toUtc().toIso8601String(),
-        'notes': observation.note,
         'work_id': workId,
       },
       where: 'id = ?',
@@ -187,7 +183,6 @@ SELECT
   po.id AS po_id,
   po.price_cents AS po_price_cents,
   po.observed_at AS po_observed_at,
-  po.notes AS po_notes,
   po.created_at AS po_created_at,
   po.work_id AS po_work_id,
   p.barcode AS p_barcode,
@@ -237,7 +232,6 @@ $orderBy
       latitude: 0,
       longitude: 0,
       observedAt: _parseDate(row['po_observed_at']) ?? DateTime.now().toUtc(),
-      note: row['po_notes'] as String?,
       createdAt: _parseDate(row['po_created_at']),
     );
   }

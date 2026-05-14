@@ -19,7 +19,10 @@ class SupabaseCollaboratorWorksService
     final response = await _httpJsonClient.getJson(
       _config.tableUri(
         'works_full',
-        queryParameters: {'collaborator_username': 'eq.${username.trim()}'},
+        queryParameters: {
+          'collaborator_username': 'eq.${username.trim()}',
+          'done': 'eq.false',
+        },
       ),
       headers: _config.headers,
     );

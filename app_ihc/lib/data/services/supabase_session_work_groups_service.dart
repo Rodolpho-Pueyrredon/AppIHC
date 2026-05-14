@@ -23,20 +23,70 @@ class SupabaseSessionWorkGroupsService
 
   @override
   Future<List<SessionWorkGroup>> getWorkGroupsFromSession() async {
-    final workIds = await _getSessionWorkIds();
+    final sessionRows = await _getSessionRowsByWorkId();
     final groups = <SessionWorkGroup>[];
 
-    for (final workId in workIds) {
+    for (final entry in sessionRows.entries) {
+      final workId = entry.key;
+      final cachedGroup = _fromSessionRow(entry.value);
+      final remoteResult = await _getRemoteWorkGroup(workId);
+
+      if (remoteResult.group != null) {
+        await _cacheWorkGroup(remoteResult.group!);
+        groups.add(remoteResult.group!);
+        continue;
+      }
+
+      if (remoteResult.failed) {
+        if (cachedGroup != null) {
+          groups.add(cachedGroup);
+          continue;
+        }
+
+        groups.add(
+          SessionWorkGroup(
+            workGroupId: workId,
+            storeName: 'Trabalho $workId',
+            storeAddress: '',
+          ),
+        );
+      }
+    }
+
+    return groups;
+  }
+
+  Future<Map<String, Map<String, Object?>>> _getSessionRowsByWorkId() async {
+    await _ensureSessionTable();
+
+    final rows = await _sqliteService.query(
+      _sessionTable,
+      columns: ['work_id', 'store_name', 'store_address'],
+    );
+
+    final rowsByWorkId = <String, Map<String, Object?>>{};
+    for (final row in rows) {
+      final workId = _stringValue(row['work_id']);
+      if (workId != null) {
+        rowsByWorkId.putIfAbsent(workId, () => row);
+      }
+    }
+
+    return rowsByWorkId;
+  }
+
+  Future<_RemoteWorkGroupResult> _getRemoteWorkGroup(String workId) async {
+    try {
       final response = await _httpJsonClient.getJson(
         _config.tableUri(
           'work_groups_full',
-          queryParameters: {'work_group_id': 'eq.$workId'},
+          queryParameters: {'work_group_id': 'eq.$workId', 'done': 'eq.false'},
         ),
         headers: _config.headers,
       );
 
       if (response is! List) {
-        continue;
+        return const _RemoteWorkGroupResult();
       }
 
       for (final item in response) {
@@ -46,31 +96,62 @@ class SupabaseSessionWorkGroupsService
 
         final group = _fromJson(item);
         if (group != null) {
-          groups.add(group);
+          return _RemoteWorkGroupResult(group: group);
         }
       }
+    } catch (_) {
+      return const _RemoteWorkGroupResult(failed: true);
     }
 
-    return groups;
+    return const _RemoteWorkGroupResult();
   }
 
-  Future<List<String>> _getSessionWorkIds() async {
-    await _sqliteService.execute(DatabaseSchema.createSessionTable);
-
-    final rows = await _sqliteService.query(
+  Future<void> _cacheWorkGroup(SessionWorkGroup group) async {
+    await _sqliteService.update(
       _sessionTable,
-      columns: ['work_id'],
+      {'store_name': group.storeName, 'store_address': group.storeAddress},
+      where: 'work_id = ?',
+      whereArgs: [group.workGroupId],
     );
+  }
 
-    final workIds = <String>{};
-    for (final row in rows) {
-      final workId = _stringValue(row['work_id']);
-      if (workId != null) {
-        workIds.add(workId);
-      }
+  SessionWorkGroup? _fromSessionRow(Map<String, Object?> row) {
+    final workGroupId = _stringValue(row['work_id']);
+    final storeName = _stringValue(row['store_name']);
+    if (workGroupId == null || storeName == null) {
+      return null;
     }
 
-    return workIds.toList(growable: false);
+    return SessionWorkGroup(
+      workGroupId: workGroupId,
+      storeName: storeName,
+      storeAddress: _stringValue(row['store_address']) ?? '',
+    );
+  }
+
+  Future<void> _ensureSessionTable() async {
+    await _sqliteService.execute(DatabaseSchema.createSessionTable);
+
+    final columns = await _sqliteService.rawQuery(
+      'PRAGMA table_info($_sessionTable)',
+    );
+    final hasStoreName = columns.any(
+      (column) => column['name'] == 'store_name',
+    );
+    if (!hasStoreName) {
+      await _sqliteService.execute(
+        'ALTER TABLE $_sessionTable ADD COLUMN store_name TEXT',
+      );
+    }
+
+    final hasStoreAddress = columns.any(
+      (column) => column['name'] == 'store_address',
+    );
+    if (!hasStoreAddress) {
+      await _sqliteService.execute(
+        'ALTER TABLE $_sessionTable ADD COLUMN store_address TEXT',
+      );
+    }
   }
 
   SessionWorkGroup? _fromJson(Map<String, Object?> json) {
@@ -97,4 +178,11 @@ class SupabaseSessionWorkGroupsService
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
+}
+
+class _RemoteWorkGroupResult {
+  const _RemoteWorkGroupResult({this.group, this.failed = false});
+
+  final SessionWorkGroup? group;
+  final bool failed;
 }

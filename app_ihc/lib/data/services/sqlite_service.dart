@@ -91,6 +91,14 @@ class SQLiteService implements SQLiteServiceContract {
   }
 
   @override
+  Future<T> transaction<T>(
+    Future<T> Function(SQLiteTransactionContract transaction) action,
+  ) async {
+    final db = await _db;
+    return db.transaction((txn) => action(_SQLiteTransactionAdapter(txn)));
+  }
+
+  @override
   Future<int> update(
     String table,
     Map<String, Object?> values, {
@@ -98,12 +106,7 @@ class SQLiteService implements SQLiteServiceContract {
     required List<Object?> whereArgs,
   }) async {
     final db = await _db;
-    return db.update(
-      table,
-      values,
-      where: where,
-      whereArgs: whereArgs,
-    );
+    return db.update(table, values, where: where, whereArgs: whereArgs);
   }
 
   @override
@@ -113,10 +116,21 @@ class SQLiteService implements SQLiteServiceContract {
     required List<Object?> whereArgs,
   }) async {
     final db = await _db;
-    return db.delete(
-      table,
-      where: where,
-      whereArgs: whereArgs,
-    );
+    return db.delete(table, where: where, whereArgs: whereArgs);
+  }
+}
+
+class _SQLiteTransactionAdapter implements SQLiteTransactionContract {
+  _SQLiteTransactionAdapter(this._transaction);
+
+  final Transaction _transaction;
+
+  @override
+  Future<int> delete(
+    String table, {
+    required String where,
+    required List<Object?> whereArgs,
+  }) {
+    return _transaction.delete(table, where: where, whereArgs: whereArgs);
   }
 }

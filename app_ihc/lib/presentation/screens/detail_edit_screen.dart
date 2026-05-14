@@ -251,7 +251,6 @@ class _DetailEditScreenState extends State<DetailEditScreen> {
           latitude: geolocation?.latitude ?? _baseObservation.latitude,
           longitude: geolocation?.longitude ?? _baseObservation.longitude,
           observedAt: now,
-          note: _baseObservation.note,
           createdAt: now,
         );
         await _repository.saveObservation(newObservation);

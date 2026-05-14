@@ -6,6 +6,7 @@ import 'package:app_ihc/data/repositories/session_repository_impl.dart';
 import 'package:app_ihc/data/repositories/store_repository_impl.dart';
 import 'package:app_ihc/data/services/http_json_client.dart';
 import 'package:app_ihc/data/services/product_lookup_service.dart';
+import 'package:app_ihc/data/services/supabase_price_observation_sync_service.dart';
 import 'package:app_ihc/data/services/supabase_session_products_sync_service.dart';
 import 'package:app_ihc/data/services/supabase_session_work_groups_service.dart';
 import 'package:app_ihc/data/services/sqlite_service.dart';
@@ -21,6 +22,7 @@ import 'package:app_ihc/domain/repositories/store_repository.dart';
 import 'package:app_ihc/domain/services/geolocation_service_contract.dart';
 import 'package:app_ihc/domain/services/collaborator_login_service_contract.dart';
 import 'package:app_ihc/domain/services/collaborator_works_service_contract.dart';
+import 'package:app_ihc/domain/services/price_observation_sync_service_contract.dart';
 import 'package:app_ihc/domain/services/product_lookup_service_contract.dart';
 import 'package:app_ihc/domain/services/scanner_service_contract.dart';
 import 'package:app_ihc/domain/services/session_products_sync_service_contract.dart';
@@ -41,6 +43,7 @@ class ServiceLocator {
   late final HttpJsonClient httpJsonClient;
   late final CollaboratorLoginServiceContract collaboratorLoginService;
   late final CollaboratorWorksServiceContract collaboratorWorksService;
+  late final PriceObservationSyncServiceContract priceObservationSyncService;
   late final SessionProductsSyncServiceContract sessionProductsSyncService;
   late final SessionWorkGroupsServiceContract sessionWorkGroupsService;
   late final ProductLookupServiceContract productLookupService;
@@ -65,6 +68,11 @@ class ServiceLocator {
     collaboratorWorksService = SupabaseCollaboratorWorksService(
       config: SupabaseApiConfig.fromEnvironment(),
       httpJsonClient: httpJsonClient,
+    );
+    priceObservationSyncService = SupabasePriceObservationSyncService(
+      config: SupabaseApiConfig.fromEnvironment(),
+      httpJsonClient: httpJsonClient,
+      sqliteService: sqliteService,
     );
     sessionProductsSyncService = SupabaseSessionProductsSyncService(
       config: SupabaseApiConfig.fromEnvironment(),

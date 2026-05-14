@@ -15,14 +15,23 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
+  final _authSession = ServiceLocator.instance.authSession;
+  final _collaboratorWorksService =
+      ServiceLocator.instance.collaboratorWorksService;
+  final _sessionRepository = ServiceLocator.instance.sessionRepository;
+  final _sessionProductsSyncService =
+      ServiceLocator.instance.sessionProductsSyncService;
   final _workGroupsService = ServiceLocator.instance.sessionWorkGroupsService;
   final _productRepository = ServiceLocator.instance.productRepository;
   final _observationRepository =
       ServiceLocator.instance.priceObservationRepository;
+  final _priceObservationSyncService =
+      ServiceLocator.instance.priceObservationSyncService;
 
   List<SessionWorkGroup> _workGroups = const [];
   Map<String, _TaskCollectionSummary> _summariesByWorkGroupId = const {};
   bool _isLoading = true;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -36,6 +45,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
 
     try {
+      await _refreshSessionFromSupabaseIfPossible();
       final workGroups = await _workGroupsService.getWorkGroupsFromSession();
       final summariesByWorkGroupId = <String, _TaskCollectionSummary>{};
 
@@ -70,9 +80,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao carregar trabalhos.')),
+    }
+  }
+
+  Future<void> _refreshSessionFromSupabaseIfPossible() async {
+    final username = _authSession.username?.trim();
+    if (username == null || username.isEmpty) {
+      return;
+    }
+
+    try {
+      final works = await _collaboratorWorksService.getWorksForCollaborator(
+        username,
       );
+      await _sessionRepository.saveSessionWorks(works);
+      await _sessionProductsSyncService.syncProductsFromSession();
+    } catch (_) {
+      // Best-effort refresh: offline users should keep using local SQLite data.
     }
   }
 
@@ -82,6 +106,61 @@ class _ProductsScreenState extends State<ProductsScreen> {
         .where((barcode) => barcode.isNotEmpty)
         .toSet()
         .length;
+  }
+
+  Future<void> _exportCollectedObservations() async {
+    if (_isExporting) {
+      return;
+    }
+
+    final workIds = _workGroups.map((workGroup) => workGroup.workGroupId);
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final insertedKeys = await _priceObservationSyncService
+          .syncLocalPriceObservationsForWorkIds(workIds);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            insertedKeys.isEmpty
+                ? 'Nenhuma coleta local para exportar.'
+                : '${insertedKeys.length} coleta(s) exportada(s).',
+          ),
+        ),
+      );
+
+      await _loadWorkGroups();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_exportErrorMessage(error))));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
+  String _exportErrorMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.isEmpty) {
+      return 'Erro ao exportar coletas.';
+    }
+
+    return 'Erro ao exportar coletas: $message';
   }
 
   @override
@@ -97,6 +176,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
           title: const SessionAppBarTitle(
             child: Text('Tarefas', style: TextStyle(fontSize: 24)),
           ),
+          actions: [
+            const LogoutActionButton(),
+            _isExporting
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(
+                      child: SizedBox.square(
+                        dimension: 32,
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Exportar coletas',
+                    onPressed: _workGroups.isEmpty
+                        ? null
+                        : _exportCollectedObservations,
+                    icon: const Icon(Icons.file_upload, size: 48),
+                  ),
+          ],
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -104,41 +203,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 onRefresh: _loadWorkGroups,
                 child: _workGroups.isEmpty
                     ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
                           SizedBox(height: 120),
                           Center(child: Text('Nenhum trabalho encontrado.')),
                         ],
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _workGroups.length,
-                        separatorBuilder: (_, index) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final workGroup = _workGroups[index];
-                          return _WorkGroupButton(
-                            workGroup: workGroup,
-                            summary:
-                                _summariesByWorkGroupId[workGroup.workGroupId],
-                            onPressed: () {
-                              ServiceLocator.instance.authSession
-                                  .selectWorkGroup(
+                    : Scrollbar(
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _workGroups.length,
+                          separatorBuilder: (_, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final workGroup = _workGroups[index];
+                            return _WorkGroupButton(
+                              workGroup: workGroup,
+                              summary:
+                                  _summariesByWorkGroupId[workGroup
+                                      .workGroupId],
+                              onPressed: () {
+                                ServiceLocator.instance.authSession
+                                    .selectWorkGroup(
+                                      workGroupId: workGroup.workGroupId,
+                                      storeName: workGroup.storeName,
+                                      storeAddress: workGroup.storeAddress,
+                                    );
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  AppRoutes.history,
+                                  arguments: HistoryArgs(
                                     workGroupId: workGroup.workGroupId,
                                     storeName: workGroup.storeName,
                                     storeAddress: workGroup.storeAddress,
-                                  );
-                              Navigator.pushReplacementNamed(
-                                context,
-                                AppRoutes.history,
-                                arguments: HistoryArgs(
-                                  workGroupId: workGroup.workGroupId,
-                                  storeName: workGroup.storeName,
-                                  storeAddress: workGroup.storeAddress,
-                                ),
-                              );
-                            },
-                          );
-                        },
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
               ),
       ),
@@ -159,10 +263,13 @@ class _WorkGroupButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompleted = summary?.isCompleted ?? false;
+
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         alignment: Alignment.centerLeft,
+        backgroundColor: isCompleted ? const Color(0xFFDDF7DF) : null,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -184,10 +291,12 @@ class _WorkGroupButton extends StatelessWidget {
             _TaskSummaryText(
               label: 'Produtos coletados',
               value: summary!.collectedProducts,
+              color: Colors.green.shade700,
             ),
             _TaskSummaryText(
               label: 'Ainda a coletar',
               value: summary!.pendingProducts,
+              color: Colors.red.shade700,
             ),
           ],
         ],
@@ -197,18 +306,24 @@ class _WorkGroupButton extends StatelessWidget {
 }
 
 class _TaskSummaryText extends StatelessWidget {
-  const _TaskSummaryText({required this.label, required this.value});
+  const _TaskSummaryText({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final int value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       '$label: $value',
-      style: Theme.of(
-        context,
-      ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: color,
+      ),
     );
   }
 }
@@ -221,6 +336,8 @@ class _TaskCollectionSummary {
 
   final int collectedProducts;
   final int pendingProducts;
+
+  bool get isCompleted => pendingProducts == 0;
 
   factory _TaskCollectionSummary.fromCounts({
     required int totalProducts,

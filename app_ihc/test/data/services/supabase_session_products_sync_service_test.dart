@@ -102,6 +102,13 @@ class _FakeSQLiteService implements SQLiteServiceContract {
   ]) async {
     return const [];
   }
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function(SQLiteTransactionContract transaction) action,
+  ) {
+    throw UnimplementedError();
+  }
 }
 
 void main() {
@@ -150,7 +157,7 @@ void main() {
     expect(sqliteService.productRows.last['product_name'], 'Suco');
     expect(
       httpClient.lastUri.toString(),
-      'https://example.com/rest/v1/works_full?collaborator_username=eq.miao_yin%40empresa.com',
+      'https://example.com/rest/v1/works_full?collaborator_username=eq.miao_yin%40empresa.com&done=eq.false',
     );
   });
 }

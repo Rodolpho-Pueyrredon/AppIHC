@@ -1,3 +1,11 @@
+abstract interface class SQLiteTransactionContract {
+  Future<int> delete(
+    String table, {
+    required String where,
+    required List<Object?> whereArgs,
+  });
+}
+
 abstract interface class SQLiteServiceContract {
   Future<void> init();
   Future<void> execute(String sql);
@@ -25,4 +33,7 @@ abstract interface class SQLiteServiceContract {
     String sql, [
     List<Object?>? arguments,
   ]);
+  Future<T> transaction<T>(
+    Future<T> Function(SQLiteTransactionContract transaction) action,
+  );
 }

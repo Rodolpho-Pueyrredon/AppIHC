@@ -33,7 +33,10 @@ class SupabaseSessionProductsSyncService
     final response = await _httpJsonClient.getJson(
       _config.tableUri(
         'works_full',
-        queryParameters: {'collaborator_username': 'eq.$username'},
+        queryParameters: {
+          'collaborator_username': 'eq.$username',
+          'done': 'eq.false',
+        },
       ),
       headers: _config.headers,
     );
